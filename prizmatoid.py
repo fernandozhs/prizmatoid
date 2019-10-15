@@ -13,7 +13,7 @@ import time, datetime
 
 
 def expand_flag(flag, interval):
-    """ Expands each flagged sample featuring in the `flag` field by a given sample `invertal = (b, a)`. In other words, each flagged sample is expanded to also include those `b` of samples occurring before it, as well a those `a` samples occurring after it.
+    """ Expands each flagged sample featuring in the `flag` field by a given sample `interval = (b, a)`. In other words, each flagged sample is expanded to also include those `b` of samples occurring before it, as well a those `a` samples occurring after it.
     
     Args:
         flag: the flag field, i.e., an (n,)-dimensional NumPy array containing entries with value `1` for flagged samples, and `0` for non-flagged samples.

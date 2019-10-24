@@ -262,7 +262,7 @@ def read_scio_file(dirs, file_name, verbose=True):
             # If files could not be found and/or read, the index associated with
             # such files are stored in `indices`, and the path to that files is
             # printed along with a warning message.
-            if entry == None:
+            if entry is None:
                 indices.append(index)
                 print(
                     'Could not find and/or read file: '
@@ -289,7 +289,7 @@ def read_scio_file(dirs, file_name, verbose=True):
     except ValueError:
         scio_data = np.array([])
         print('No files named `' + file_name + '` could be found and/or read.')
-    
+
     # Returns the `scio_data`.
     return scio_data
 
@@ -303,7 +303,7 @@ def read_raw_file(dirs, file_name, verbose=True, dtype='float64'):
     message is printed. All files which have been successfully located and read
     are stacked and returned a single NumPy array.
     (This function is largely equivalent to `prizmtools.read_field_many_fast`).
-    
+
     Args:
         dir: a list of strings specifying the directories where the '.raw' files
             of interest are stored.
@@ -313,7 +313,7 @@ def read_raw_file(dirs, file_name, verbose=True, dtype='float64'):
             messages as the data is read when `True`, or to output no messages
             when `False`.
         dtype: the desired data type to be returned, defaulted to be 'float64'.
-    
+
     Returns:
         A NumPy array containing the information encapsulated in all files named
         `file_name` stored in the directories `dirs`. If no files with the input
@@ -342,7 +342,7 @@ def read_raw_file(dirs, file_name, verbose=True, dtype='float64'):
         except:
             indices.append(index)
     read_end = time.time()
-    
+
     # Verbose message.
     if verbose:
         print(
@@ -375,9 +375,9 @@ def read_raw_file(dirs, file_name, verbose=True, dtype='float64'):
 
 
 def read_prizm_data(first_ctime, second_ctime, dir_top,
-    subdir_100='data_100MHz', subdir_70='data_70MHz',
-    subdir_switch='switch_data', read_100=True, read_70=True, read_switch=True,
-    read_temp=False, verbose=False):
+        subdir_100='data_100MHz', subdir_70='data_70MHz',
+        subdir_switch='switch_data', read_100=True, read_70=True,
+        read_switch=True, read_temp=False, verbose=False):
     """ Reads PRIZM data within a specified time range.
 
     Looks for data files in the subdirectories `subdir_100` and `subdir_70`

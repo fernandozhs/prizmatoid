@@ -201,9 +201,17 @@ def dir_from_ctime(first_ctime, second_ctime, dir_parent, n_digits=5):
                 continue
             # Else, checks what are the subdirectories in `first_level_entry`.
             else:
-                # Lists and sorts all subdirectories in the second level of the
-                # directory structure.
+                # Lists all subdirectories in the second level of the directory
+                # structure.
                 second_level = os.listdir(dir_parent + '/' + first_level_entry)
+                
+                # Cleans any non-numeric entries in `second_level` and sorts
+                # the remaining entries.
+                second_level = [
+                                entry
+                                for entry in second_level
+                                if entry.isnumeric()
+                                ]
                 second_level.sort()
                 
                 # Creates `second_level_num` by converting all entries of

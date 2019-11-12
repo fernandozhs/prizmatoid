@@ -136,9 +136,9 @@ def timestamp_from_ctime(ctimes, format='%Y%m%d_%H%M%S'):
 
     # Generates the `dates` list containing the timestamps of interest.
     dates = [
-        str(datetime.utcfromtimestamp(entry).strftime(format))
-        for entry in ctimes
-        ]
+             str(datetime.utcfromtimestamp(entry).strftime(format))
+             for entry in ctimes
+             ]
 
     # Returns the `dates` list.
     return dates
@@ -295,10 +295,10 @@ def read_scio_file(dirs, file_name, verbose=True):
     # Verbose message.
     if verbose:
         print(
-            '`read_scio_file`: operation `scio.read_files` lasted ',
-            read_end - read_start,
-            's.',
-            )
+              '`read_scio_file`: operation `scio.read_files` lasted ',
+              read_end - read_start,
+              's.',
+              )
 
     # Checks whether any file has not been found and/or read, making it feature
     # in `scio_data_list` as a `None` entry. The indices associated with such
@@ -317,9 +317,9 @@ def read_scio_file(dirs, file_name, verbose=True):
             if entry is None:
                 indices.append(index)
                 print(
-                    'Could not find and/or read file: '
-                    + dirs[index] + '/' + file_name
-                    )
+                      'Could not find and/or read file: '
+                      + dirs[index] + '/' + file_name
+                      )
         except ValueError:
             continue
 
@@ -327,10 +327,10 @@ def read_scio_file(dirs, file_name, verbose=True):
     # keeps all elements which do not feature in the list of `indices` generated
     # above.
     scio_data_list = [
-        entry
-        for index, entry in enumerate(scio_data_list)
-        if index not in indices
-        ]
+                      entry
+                      for index, entry in enumerate(scio_data_list)
+                      if index not in indices
+                      ]
 
     # Attempts to stack the entries of `scio_data_list` into a single NumPy
     # array `scio_data` using `numpy.vstack`. If this operation fails, it means
@@ -389,8 +389,8 @@ def read_raw_file(dirs, file_name, verbose=True, dtype='float64'):
     for index, dir in enumerate(dirs):
         try:
             raw_data_list.append(
-                np.fromfile(dir + '/' + file_name, dtype=dtype)
-                )
+                                 np.fromfile(dir + '/' + file_name, dtype=dtype)
+                                 )
         except:
             indices.append(index)
     read_end = time.time()
@@ -398,19 +398,19 @@ def read_raw_file(dirs, file_name, verbose=True, dtype='float64'):
     # Verbose message.
     if verbose:
         print(
-            '`read_raw_file`: operation `numpy.fromfile` lasted ',
-            read_end - read_start,
-            's.',
-            )
+              '`read_raw_file`: operation `numpy.fromfile` lasted ',
+              read_end - read_start,
+              's.',
+              )
 
     # If files could not be found and/or read, the index associated with such
     # file, which is stored in `indices`, is used to print their path along with
     # a warning message.
     for index in indices:
         print(
-            'Could not find and/or read file: '
-             + dirs[index] + '/' + file_name
-             )
+              'Could not find and/or read file: '
+              + dirs[index] + '/' + file_name
+              )
 
     # Attempts to stack the entries of `raw_data_list` into a single NumPy array
     # `raw_data` using `numpy.hstack`. If this operation fails, it means
@@ -473,36 +473,36 @@ def read_prizm_data(first_ctime, second_ctime, dir_top,
             'pol1.scio': numpy.array,
             'cross_real.scio': numpy.array,
             'cross_imag.scio': numpy.array,
-            'acc_cnt1.raw',
-            'acc_cnt2.raw',
-            'fft_of_cnt.raw',
-            'fft_shift.raw',
-            'fpga_temp.raw',
-            'pi_temp.raw',
-            'sync_cnt1.raw',
-            'sync_cnt2.raw',
-            'sys_clk1.raw',
-            'sys_clk2.raw',
-            'time_sys_start.raw',
-            'time_sys_stop.raw',
+            'acc_cnt1.raw': numpy.array,
+            'acc_cnt2.raw': numpy.array,
+            'fft_of_cnt.raw': numpy.array,
+            'fft_shift.raw': numpy.array,
+            'fpga_temp.raw': numpy.array,
+            'pi_temp.raw': numpy.array,
+            'sync_cnt1.raw': numpy.array,
+            'sync_cnt2.raw': numpy.array,
+            'sys_clk1.raw': numpy.array,
+            'sys_clk2.raw': numpy.array,
+            'time_sys_start.raw': numpy.array,
+            'time_sys_stop.raw': numpy.array,
             },
          '100MHz': {
             'pol0.scio': numpy.array,
             'pol1.scio': numpy.array,
             'cross_real.scio': numpy.array,
             'cross_imag.scio': numpy.array,
-            'acc_cnt1.raw',
-            'acc_cnt2.raw',
-            'fft_of_cnt.raw',
-            'fft_shift.raw',
-            'fpga_temp.raw',
-            'pi_temp.raw',
-            'sync_cnt1.raw',
-            'sync_cnt2.raw',
-            'sys_clk1.raw',
-            'sys_clk2.raw',
-            'time_sys_start.raw',
-            'time_sys_stop.raw',
+            'acc_cnt1.raw': numpy.array,
+            'acc_cnt2.raw': numpy.array,
+            'fft_of_cnt.raw': numpy.array,
+            'fft_shift.raw': numpy.array,
+            'fpga_temp.raw': numpy.array,
+            'pi_temp.raw': numpy.array,
+            'sync_cnt1.raw': numpy.array,
+            'sync_cnt2.raw': numpy.array,
+            'sys_clk1.raw': numpy.array,
+            'sys_clk2.raw': numpy.array,
+            'time_sys_start.raw': numpy.array,
+            'time_sys_stop.raw': numpy.array,
             },
          'switch': {
             'antenna.scio': numpy.array,
@@ -522,15 +522,17 @@ def read_prizm_data(first_ctime, second_ctime, dir_top,
         'pol0.scio', 'pol1.scio', 'cross_real.scio', 'cross_imag.scio',
         ]
     raw_files = [
-        ('acc_cnt1.raw','int32'), ('acc_cnt2.raw','int32'),
-        ('fft_of_cnt.raw','int32'), ('fft_shift.raw','int64'),
-        ('fpga_temp.raw','float'), ('pi_temp.raw','int32'),
-        ('sync_cnt1.raw','int32'), ('sync_cnt2.raw','int32'),
-        ('sys_clk1.raw','int32'), ('sys_clk2.raw','int32'),
-        ('time_sys_start.raw','float'),
-        ('time_sys_stop.raw','float'),
+        ('acc_cnt1.raw', 'int32'), ('acc_cnt2.raw', 'int32'),
+        ('fft_of_cnt.raw', 'int32'), ('fft_shift.raw', 'int64'),
+        ('fpga_temp.raw', 'float'), ('pi_temp.raw', 'int32'),
+        ('sync_cnt1.raw', 'int32'), ('sync_cnt2.raw', 'int32'),
+        ('sys_clk1.raw', 'int32'), ('sys_clk2.raw', 'int32'),
+        ('time_sys_start.raw', 'float'),
+        ('time_sys_stop.raw', 'float'),
+        ('time_start.raw', 'float'),
+        ('time_stop.raw', 'float'),
         ]
-    switch_files = ['antenna.scio','res100.scio','res50.scio','short.scio']
+    switch_files = ['antenna.scio', 'res100.scio', 'res50.scio', 'short.scio']
     temp_files = [
         ('temp_100A_bot_lna.raw', 'int32'), ('temp_100_ambient.raw', 'int32'),
         ('temp_100A_noise.raw', 'int32'), ('temp_100A_switch.raw', 'int32'),
@@ -680,20 +682,20 @@ def add_switch_flags(prizm_data, antennas=['70MHz', '100MHz']):
         # interest. An error message is printed if that information is missing.
         if antenna not in prizm_data.keys():
             print(
-                '`add_switch_flags`: error, the data for the '
-                + antenna
-                + ' antenna could not be found.'
-                )
+                  '`add_switch_flags`: the data for the '
+                  + antenna
+                  + ' antenna could not be found.'
+                  )
             continue
 
         # Makes sure the input dictionary contains the timestamp data. An error
         # message is printed if that information is missing.
         if len(prizm_data[antenna]['time_sys_start.raw']) == 0:
             print(
-                '`add_switch_flags`: error, no timestamp data was found for the '
-                + antenna
-                + ' antenna.'
-                )
+                  '`add_switch_flags`: no timestamp data was found for the '
+                  + antenna
+                  + ' antenna.'
+                  )
             continue
 
         # Initializes the dictionary entry which will store the flags.
@@ -812,20 +814,20 @@ def add_quality_flags(prizm_data, antennas=['70MHz', '100MHz']):
         # interest. An error message is printed if that information is missing.
         if antenna not in prizm_data.keys():
             print(
-                '`add_quality_flags`: error, the data for the '
-                + antenna
-                + ' antenna could not be found.'
-                )
+                  '`add_quality_flags`: the data for the '
+                  + antenna
+                  + ' antenna could not be found.'
+                  )
             continue
 
         # Makes sure the input dictionary contains the timestamp data. An error
         # message is printed if that information is missing.
         if len(prizm_data[antenna]['time_sys_start.raw']) == 0:
             print(
-                '`add_switch_flags`: error, no timestamp data was found for the '
-                + antenna
-                + ' antenna.'
-                )
+                  '`add_switch_flags`: no timestamp data was found for the '
+                  + antenna
+                  + ' antenna.'
+                  )
             continue
 
         # Initializes the dictionary entry which will store the flags.

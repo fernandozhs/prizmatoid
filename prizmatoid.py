@@ -179,70 +179,68 @@ def dir_from_ctime(first_ctime, second_ctime, dir_parent, n_digits=5):
     if first_ctime > second_ctime:
         first_ctime, second_ctime = second_ctime, first_ctime
 
-    # Lists and sorts all subdirectories in the first level of the directory
-    # structure, i.e., all subdirectories labeled by the first `n-digits` of a
-    # reference ctime.
+    # Lists all subdirectories in the first level of the directory structure,
+    # i.e., all subdirectories labeled by the first `n-digits` of a reference
+    # ctime.
     first_level = os.listdir(dir_parent)
+
+    # Cleans any non-numeric entries in `first_level` and sorts the remaining
+    # entries.
+    first_level = [
+                   entry
+                   for entry in first_level
+                   if entry.isnumeric()
+                   ]
     first_level.sort()
 
     # Loops over the entries of the first level of subdirectories in order to
     # identify the subdirectories in the second level.
     for first_level_entry in first_level:
-        # Here we must use the 'try/except' construction since 'os.listdir'
-        # might have inadvertedly included subdirectories is non-numerical names
-        # into `first_level`. (An example is the first-level subdirectory named
-        # 'log').
-        try:
-            # If the `first_level_entry` ctime dos not fall within the time
-            # range defined by the input `first_ctime` and `second_ctime`, skip
-            # to the next one.
-            if (int(first_level_entry) < int(str(first_ctime)[:n_digits])
-                or int(first_level_entry) > int(str(second_ctime)[:n_digits])):
-                continue
-            # Else, checks what are the subdirectories in `first_level_entry`.
-            else:
-                # Lists all subdirectories in the second level of the directory
-                # structure.
-                second_level = os.listdir(dir_parent + '/' + first_level_entry)
-                
-                # Cleans any non-numeric entries in `second_level` and sorts
-                # the remaining entries.
-                second_level = [
-                                entry
-                                for entry in second_level
-                                if entry.isnumeric()
-                                ]
-                second_level.sort()
-                
-                # Creates `second_level_num` by converting all entries of
-                # `second_level` to their corresponding numerical values.
-                # This makes numerical comparisons with `first_ctime` and
-                # `second_ctime` easier.
-                second_level_num = np.asarray(second_level, dtype='float')
-                
-                # Converts `second_level` to a NumPy array of strings to
-                # facilitate its slicing/manipulation below.
-                second_level = np.asarray(second_level)
-                
-                # Estipulates the condition for picking directories of interest,
-                # i.e., those which fall within the input ctime range.
-                condition = np.logical_and(second_level_num - first_ctime >= 0,
-                                           second_level_num - second_ctime <= 0)
+        # If the `first_level_entry` ctime dos not fall within the time
+        # range defined by the input `first_ctime` and `second_ctime`, skip
+        # to the next one.
+        if (int(first_level_entry) < int(str(first_ctime)[:n_digits])
+            or int(first_level_entry) > int(str(second_ctime)[:n_digits])):
+            continue
+        # Else, checks what are the subdirectories in `first_level_entry`.
+        else:
+            # Lists all subdirectories in the second level of the directory
+            # structure.
+            second_level = os.listdir(dir_parent + '/' + first_level_entry)
+            
+            # Cleans any non-numeric entries in `second_level` and sorts
+            # the remaining entries.
+            second_level = [
+                            entry
+                            for entry in second_level
+                            if entry.isnumeric()
+                            ]
+            second_level.sort()
+            
+            # Creates `second_level_num` by converting all entries of
+            # `second_level` to their corresponding numerical values.
+            # This makes numerical comparisons with `first_ctime` and
+            # `second_ctime` easier.
+            second_level_num = np.asarray(second_level, dtype='float')
+            
+            # Converts `second_level` to a NumPy array of strings to
+            # facilitate its slicing/manipulation below.
+            second_level = np.asarray(second_level)
+            
+            # Estipulates the condition for picking directories of interest,
+            # i.e., those which fall within the input ctime range.
+            condition = np.logical_and(second_level_num - first_ctime >= 0,
+                                       second_level_num - second_ctime <= 0)
 
-                # Selects the directories of interest by applying `condition` to
-                # `second_level`. Then stores the result in `dir_list`.
-                dir_select = [
-                              dir_parent
-                              + '/' + first_level_entry
-                              + '/' + second_level_entry
-                              for second_level_entry in second_level[condition]
-                              ]
-                dir_list += dir_select
-
-        # Pass in case we have ran into one of the problematic cases while
-        # looping over the `first_level` of subdirectories.
-        except:
-            pass
+            # Selects the directories of interest by applying `condition` to
+            # `second_level`. Then stores the result in `dir_list`.
+            dir_select = [
+                          dir_parent
+                          + '/' + first_level_entry
+                          + '/' + second_level_entry
+                          for second_level_entry in second_level[condition]
+                          ]
+            dir_list += dir_select
 
     # Sorts and returns a list of strings specifying the subdirectories of
     # interest according to the input time range.
@@ -529,6 +527,8 @@ def read_prizm_data(first_ctime, second_ctime, dir_top,
         ('sys_clk1.raw', 'int32'), ('sys_clk2.raw', 'int32'),
         ('time_sys_start.raw', 'float'),
         ('time_sys_stop.raw', 'float'),
+        ('time_rtc_start.raw', 'float'),
+        ('time_rtc_stop.raw', 'float'),
         ]
     switch_files = ['antenna.scio', 'res100.scio', 'res50.scio', 'short.scio']
     temp_files = [
@@ -760,7 +760,7 @@ def add_switch_flags(prizm_data, antennas=['70MHz', '100MHz']):
             if len(times) > 0 and times[-1,0] == 1.0:
                 final_endpoint = np.array([[0.0, stop_time]])
                 times = np.append(times, final_endpoint, axis=0)
-                
+
             # Takes the ctime data stored in `prizm_data` in preparation for the
             # data chunk selection performed below. Here the NumPy arrays
             # `data_time_start` and `data_time_stop` contain the times at which
@@ -780,7 +780,7 @@ def add_switch_flags(prizm_data, antennas=['70MHz', '100MHz']):
                 # If the current element (antenna, resistance, or short) is
                 # active for the chunk under consideration (i.e.,
                 # `chunk_start[0] == 1.0`), the `flag` is assigned the value `1`
-                #  in that chunk.
+                # in that chunk.
                 if chunk_start[0] == 1.0:
                     flag[chunk_filter] = np.ones(len(chunk_filter), dtype='int')
 

@@ -1,6 +1,16 @@
 # NumPy
 import numpy as np
 
+# SciPy
+from scipy import interpolate
+
+# HealPy
+import healpy
+
+# PyGSM (https://github.com/telegraphic/PyGSM)
+from pygsm import GSMObserver
+from pygsm import GlobalSkyModel
+
 # Scio (https://github.com/sievers/scio)
 import scio
 
@@ -658,12 +668,12 @@ def add_switch_flags(prizm_data, antennas=['70MHz', '100MHz']):
     'switch' entry contained in that same dictionary which flags portions of the
     PRIZM data as either coming from: the antenna, the 100 Ohm resistor, the
     short, or the 50 Ohm resistor.
-    
+
     Args:
         prizm_data: a dictionary containing all PRIZM data structured according
             to the output of the function `read_prizm_data`.
         antennas: a list containing the antennas for flag generation.
-    
+
     Returns:
         The input dictionary with an additional entry with key 'switch_flags'
         for each antenna listed in `antennas`. The new entry contains a
@@ -890,3 +900,220 @@ def add_quality_flags(prizm_data, antennas=['70MHz', '100MHz']):
         prizm_data[antenna]['quality_flags']['fft_of_cnt.raw'] = fft_flag
 
     return
+
+
+def read_beam(dir_parent, file_name):
+    """ Reads a beam simulation file for a given PRIZM antenna.
+
+    Looks for files with the given `file_name` under the input parent directory
+    `dir_parent`. If the file has been located in the provided directory, the
+    function attempts to read it. In case the file cannot be found and/or read,
+    an error message is printed. Successfully read files are stored and returned
+    in a dictionary format.
+
+    Args:
+        dir_parent = a string containing the top level directory where the file
+            is stored.
+        file_name: a string specifying the beam simulation file for the antenna
+            of interest.
+
+    Returns:
+        A dictionary containing the sampled beam amplitudes and associated
+        spherical coordinates for each frequency channel (in MHz). A typical
+        output returned by this function would have the following structure.
+
+        {
+        'theta': numpy.array,
+        'phi': numpy.array,
+        20: numpy.array,
+        22: numpy.array,
+        ...,
+        198: numpy.array,
+        200: numpy.array,
+        }
+    """
+
+    # Initializes the dictionary which will hold the beam information.
+    beam_dict = {}
+
+    # Establishes the `file_path` which points to the beam simulation of
+    # interest.
+    file_path = dir_parent + '/' + file_name
+
+    # Stores the beam simulation data in the NumPy array `beam_sim_data`, and
+    # ignores the header as a comment starting with '#'.
+    beam_sim_data = np.loadtxt(file_path, delimiter=',', comments='#')
+
+    # Reads the beam file header, cleans it from unwanted characters, and keeps
+    # only the numerical entries – these correspond to the different frequencies
+    # for which the beam has been simulated.
+    beam_file = open(file_path, 'r')
+    header = beam_file.readline()
+    frequencies = header.strip('#\n, ').split(',')[2:]
+    beam_file.close()
+
+    # Converts the `frequencies` list to a NumPy array and converts its values
+    # to MHz through a division by 1e6.
+    frequencies = np.asarray(frequencies, dtype='float')/1e6
+
+    # Extracts the spherial coordinates `theta` and `phi` stored in
+    # `beam_sim_data` and converts their units from degrees to radians.
+    theta = np.unique(beam_sim_data[:,0])*np.pi/180
+    phi = np.unique(beam_sim_data[:,1])*np.pi/180
+
+    # Discards the coordinate information from `beam_sim_data` since this is
+    # already stored in the meshgrid, as well as in `theta` and `phi`.
+    beam_sim_data = beam_sim_data[:,2:]
+
+    # Stores spherical coordinates in `beam_dict`.
+    beam_dict['theta'] = theta
+    beam_dict['phi'] = phi
+    
+    # Stores the beam profile for each frequency in `beam_dict`.
+    for index, entry in enumerate(frequencies):
+        # Reshape the `beam_sim_data` so that its dimensions are compatible with
+        # those of `theta` and `phi`. This way different slices of `beam_sim_data`
+        # correspond to the beam for different frequencies.
+        reshaped_beam_sim = np.reshape(beam_sim_data[:,index],
+                                       [len(phi), len(theta)])
+        
+        # Stores the reshaped beam in `beam_dict` under the appropriate
+        # frequency key.
+        beam_dict[entry] = reshaped_beam_sim
+
+    # Returns the beam information in a dictionary format.
+    return beam_dict
+
+
+def healpy_beam(beam_dict, healpy_nside=256, site_latitude=-46.88694):
+    """ Converts a beam simulation dictionary into HealPix format.
+
+    Given an input dictionary `beam_dict` containing the raw beam simulation and
+    associated spherical coordinates, generates a new dictionary is generated in
+    which the beam amplitudes and spherical coordinates are adapted to the
+    HealPix format with pixelization set by `healpy_nside`.
+
+    Args:
+        beam_dict: a dictionary containing a raw beam simulation.
+        healpy_nside: an integer specipying the HealPix pixelization.
+        site_latitude: the latitute of the instrument associated with the beam.
+
+    Returns:
+        A dictionary containing the sampled HealPix beam amplitudes and
+        associated spherical coordinates for each frequency channel (in MHz). A
+        typical output returned by this function would have the following
+        structure.
+
+        {
+        'theta': numpy.array,
+        'phi': numpy.array,
+        20: numpy.array,
+        22: numpy.array,
+        ...,
+        198: numpy.array,
+        200: numpy.array,
+        'normalization': numpy.array,
+        }
+    """
+
+    # Initializes the dictionary which will hold the HealPy version of the beam.
+    healpy_beam_dict = {}
+
+    # Extracts the frequencies for which beams are available in `beam_dict`.
+    frequencies = [key for key in beam_dict.keys() if isinstance(key, float)]
+    n_freq = len(frequencies)
+    
+    # Initializes a HealPy pixelization and associated spherical coordinates.
+    healpy_npix = healpy.nside2npix(healpy_nside)
+    healpy_theta, healpy_phi = healpy.pix2ang(healpy_nside,
+                                              np.arange(healpy_npix))
+
+    # Stores spherical coordinates in `healpy_beam_dict`.
+    healpy_beam_dict['theta'] = healpy_theta
+    healpy_beam_dict['phi'] = healpy_phi
+
+    # SciPy 2D interpolation forces us to do proceed in chunks of constant
+    # coordinate `healpy_theta`. Below we find the indices at which
+    # `healpy_theta` changes.
+    indices = np.where(np.diff(healpy_theta) != 0)[0]
+    indices = np.append(0, indices + 1)
+
+    # Initializes the NumPy array which will contain the normalization factor
+    # for each beam.
+    beam_norms = np.zeros(n_freq)
+
+    # Loops over the different frequencies for which the beam has been
+    # simulated.
+    for i, frequency in enumerate(frequencies):
+
+        # Computes the actual beam from the information contained in
+        # `beam_dict`.
+        beam = 10**(beam_dict[frequency]/10)
+
+        # Interpolates beam.
+        beam_interp = interpolate.interp2d(beam_dict['theta'],
+                                           beam_dict['phi'],
+                                           beam,
+                                           kind='cubic',
+                                           fill_value=0)
+
+        # Initializes `healpy_beam`, the HealPy version of the beam.
+        healpy_beam = np.zeros(len(healpy_theta))
+
+        # Constructs the HealPy beam.
+        for j in range(np.int(len(indices)/2) + 2):
+            start = indices[j]
+            end = indices[j+1]
+            healpy_beam[start:end] = beam_interp(healpy_theta[start],
+                                             healpy_phi[start:end])[:,0]
+
+        # Fills `beam_norms` with the appropriate normalization factors for
+        # each HealPy beam.
+        beam_norms[i] = np.sqrt(np.sum(healpy_beam**2))
+        
+        # Rotates and stores the the HealPy beam in the `healpy_beam_dict` under
+        # the appropriate frequency entry.
+        beam_rotation = healpy.rotator.Rotator([0, 0, 90 - site_latitude])
+        healpy_beam = beam_rotation.rotate_map_pixel(healpy_beam/beam_norms[i])
+        healpy_beam_dict[frequency] = healpy_beam
+
+    # Adds the beam normalizations as a separate entry in `heapy_beam_dict`.
+    healpy_beam_dict['normalization'] = beam_norms
+
+    # Returns the HealPy version of the beam in a dictionary format.
+    return healpy_beam_dict
+
+
+def beam_covariance(beam_dict):
+    """
+    """
+
+    # Extracts the beam profiles from the input beam dictionary `beam_dict`.
+    beam_array = np.array([
+                           entry.tolist()
+                           for key, entry in beam_dict.items()
+                           if isinstance(key, float)
+                           ])
+    
+    # Computes the beam covariance.
+    beam_covariance = np.dot(beam_array, beam_array.T)
+
+    # Returns the `beam_covariance`.
+    return beam_covariance
+
+
+# Jon's harmonic space product.
+def almsdotalms(alms1,alms2,nside=None):
+    nalm=len(alms2)
+    lmax=np.int(np.sqrt(2*nalm))
+    if nside is None:
+        nside=np.int(lmax/3)
+    if len(alms1.shape)==1:
+        ans=2*np.dot(np.conj(alms1[lmax:]),alms2[lmax:])
+        ans=ans+np.dot(alms1[:lmax],alms2[:lmax])
+    else:
+        ans=2*np.dot(np.conj(alms1[lmax:,:].T),alms2[lmax:])
+        ans=ans+np.dot(alms1[:lmax,:].T,alms2[:lmax])
+    return np.real(ans)*healpy.nside2npix(nside)/4/np.pi
+    
+

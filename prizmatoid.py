@@ -65,7 +65,60 @@ def expand_flag(flag, interval):
     # Extends each flagged entry of `new_flag` by `b` preceeding samples, and by
     # `a` succeeding samples.
     for index in indices:
-        new_flag[max(index - b, 0):min(index + a + 1, new_flag.size - 1)] = 1
+        new_flag[max(index - b, 0):min(index + a + 1, new_flag.size)] = 1
+
+    # Return the expanded `new_flag`.
+    return new_flag
+
+
+def shrink_flag(flag, interval):
+    """ Shrinks each flagged sample featuring in the `flag` field.
+
+    Given the `interval = (b, e)`, each flagged entry in `flag` is reduced by
+        unflagging those `b` first entries, as well as those `e` final entries.
+
+    Args:
+        flag: the flag field, i.e., an (n,)-dimensional NumPy array containing
+            integers of value `1` for flagged entries, and `0` for non-flagged
+            entries.
+        interval: a tuple of the form `(b, e)` where `b` and `e` are integers
+            specifying how many entries in the beginning (`b`) and the end (`e`)
+            of each flagged entries should be assigned the value `0` in the new
+            flag field.
+
+    Returns:
+        An (n,)-dimensional NumPy array making up a new flag field in which
+        the original flagged entries present in the input `flag` are reduced in
+        length through the unflagging of entries in the beginning (`b`) and the
+        end (`e`) of those initially-flagged entries.
+
+    Example(s):
+        >>> flag = np.array([0., 0., 1., 1., 1., 0., 1., 1., 1.])
+        >>> expand_flag(flag, interval=(1, 1))
+        >>> array([0., 0., 0., 1., 0., 0., 0., 1., 0.])
+    """
+
+    # Extracts the entries of `interval`.
+    b = interval[0]
+    e = interval[1]
+
+    # Create a `new_flag` which is given by the complement of the input `flag`.
+    new_flag = 1 - flag
+
+    # Increases the length of `new_flag` by adding a flagged entry at its
+    # beginning and another flagged entry at its end. This will circumvent
+    # boundary effects when manipulating the flagged entries.
+    new_flag = np.concatenate((np.array([1]), new_flag, np.array([1])))
+
+    # Apply `expand_flag` to `new_flag`, but inverting the order of `b` and `e`.
+    new_flag = expand_flag(new_flag, interval=(e, b))
+
+    # Crops `new_flag` to its original length by removing its first and last
+    # elements which were artificially introduced above.
+    new_flag = np.delete(new_flag, [0, len(new_flag) - 1], axis=0)
+
+    # Obtains the complement of new_flag.
+    new_flag = 1 - new_flag
 
     # Return the expanded `new_flag`.
     return new_flag
@@ -437,7 +490,7 @@ def read_raw_file(dirs, file_name, verbose=True, dtype='float64'):
 def read_prizm_data(first_ctime, second_ctime, dir_top,
         subdir_100='data_100MHz', subdir_70='data_70MHz',
         subdir_switch='switch_data', read_100=True, read_70=True,
-        read_switch=True, read_temp=False, verbose=False):
+        read_switch=True, read_temp=True, verbose=False):
     """ Reads PRIZM data within a specified time range.
 
     Looks for data files in the subdirectories `subdir_100` and `subdir_70`
@@ -466,6 +519,8 @@ def read_prizm_data(first_ctime, second_ctime, dir_top,
             channel data must be read.
         read_switch: a boolean parameter which determines whether or not the
             switch state data must be read.
+        read_temp: a boolean parameter which determines whether or not the =
+            temperature data must be read.
         verbose: a boolean parameter which instructs the function to output
             messages as the data is read when `True`, or to output no messages
             when `False`.
@@ -646,7 +701,7 @@ def read_prizm_data(first_ctime, second_ctime, dir_top,
 
         # Verbose message.
         if verbose:
-            print('Reading the switch auxiliary data.')
+            print('Reading the auxiliary switch data.')
 
         # Reads all '.scio' files in `dirs` whose names match the entries in
         # `switch_files`. The results are stored as dictionaries in
@@ -655,6 +710,28 @@ def read_prizm_data(first_ctime, second_ctime, dir_top,
             prizm_data['switch'][file_name] = read_scio_file(dirs,
                                                              file_name,
                                                              verbose=verbose)
+
+    # Checks whether `read_temp` is `True`. If so, the key `temp` is added
+    # to the `prizm_data` dictionary, creates the list of directories where
+    # the temperature data is located, and proceeds to read the data.
+    if read_temp:
+        prizm_data['temp'] = {}
+        dirs = dir_from_ctime(first_ctime,
+                              second_ctime,
+                              dir_top + '/' + subdir_switch)
+
+        # Verbose message.
+        if verbose:
+            print('Reading the auxiliary temperature data.')
+
+        # Reads all '.scio' files in `dirs` whose names match the entries in
+        # `switch_files`. The results are stored as dictionaries in
+        # `prizm_data['switch']`, with keys given by the file names being read.
+        for file_name, dtype in temp_files:
+            prizm_data['temp'][file_name] = read_raw_file(dirs,
+                                                          file_name,
+                                                          verbose=verbose,
+                                                          dtype=dtype)
 
     # Returns the `prizm_data` found in the given time range.
     return prizm_data

@@ -590,10 +590,6 @@ def read_prizm_data(first_ctime, second_ctime, dir_top,
         ('fpga_temp.raw', 'float'), ('pi_temp.raw', 'int32'),
         ('sync_cnt1.raw', 'int32'), ('sync_cnt2.raw', 'int32'),
         ('sys_clk1.raw', 'int32'), ('sys_clk2.raw', 'int32'),
-        ('time_sys_start.raw', 'float'),
-        ('time_sys_stop.raw', 'float'),
-        ('time_rtc_start.raw', 'float'),
-        ('time_rtc_stop.raw', 'float'),
         ]
     switch_files = ['antenna.scio', 'res100.scio', 'res50.scio', 'short.scio']
     temp_files = [
@@ -611,12 +607,20 @@ def read_prizm_data(first_ctime, second_ctime, dir_top,
         ('time_stop_therms.raw', 'float'),
         ]
         
-    # Lists the some old '.raw' file names, their respective data types, and
-    # their new file nomemclature.
-    old_raw_files = [
+    # Lists the old and new time '.raw' file names, their respective data types,
+    # and their new file nomemclature.
+    old_time_raw_files = [
         ('time_start.raw', 'float', 'time_sys_start.raw'),
         ('time_stop.raw', 'float', 'time_sys_stop.raw'),
+        ('time_rtc_start.raw', 'float', 'time_rtc_start.raw'),
+        ('time_rtc_stop.raw', 'float', 'time_rtc_stop.raw'),
         ]
+    new_time_raw_files = [
+            ('time_sys_start.raw', 'float', 'time_sys_start.raw'),
+            ('time_sys_stop.raw', 'float', 'time_sys_stop.raw'),
+            ('time_rtc_start.raw', 'float', 'time_rtc_start.raw'),
+            ('time_rtc_stop.raw', 'float', 'time_rtc_stop.raw'),
+            ]
 
     # Primary Data:
     # Checks whether `read_100` and `read_70` are `True`. If so, their
@@ -653,41 +657,77 @@ def read_prizm_data(first_ctime, second_ctime, dir_top,
                                                             file_name,
                                                             verbose=verbose)
 
-        # Reads all '.raw' files in `dirs` whose names match the entries in
-        # `raw_files`. The results are stored in the appropriate antenna
-        # dictionary entry of `prizm_data` with key given by the file name.
-        for file_name, dtype in raw_files:
-            prizm_data[antenna][file_name] = read_raw_file(dirs,
-                                                           file_name,
-                                                           verbose=verbose,
-                                                           dtype=dtype)
-
-        # Checks whether `prizm_data['time_sys_start.raw']` is empty, which
-        # would mean no timestamp information could be found. In that case,
+        # Checks whether `first_ctime` is smaller than 1524730000. If so,
         # attempts to read the timestamp information from those files listed in
-        # `old_raw_files`. This step is needed because at some point in 2018 the
-        # timestamp files were renamed from 'time_start.raw' and 'time_stop.raw'
-        # to 'time_sys_start.raw' and 'time_sys_stop.raw'. Since the timestamp
-        # information is essential for any analysis of the PRIZM data, checking
-        # whether these older files are available is essential. Notice that
-        # despite having different names, the data dictionary keys referring
-        # to such files still reflect the more recent file nomenclature in order
-        # to keep the resulting `prizm_data` dictionary compatible with other
-        # functions defined in this module.
-        if len(prizm_data[antenna]['time_sys_start.raw']) == 0:
+        # `old_time_raw_files`. This step is needed because at that ctime in
+        # 2018 the timestamp files were renamed from 'time_start.raw' and
+        # 'time_stop.raw' to 'time_sys_start.raw' and 'time_sys_stop.raw'. Since
+        # the timestamp information is essential for any analysis of the PRIZM
+        # data, checking whether these older files are available is essential.
+        # Notice that despite having different names, the data dictionary keys
+        # referring to such files still reflect the more recent file
+        # nomenclature in order to keep the resulting `prizm_data` dictionary
+        # compatible with other functions defined in this module.
+        if first_ctime < 1524730000:
             # Verbose message.
             if verbose:
                 print('Attempting to read the older timestamp files.')
 
             # Reads all '.raw' files in `dirs` whose names match the entries in
-            # `old_raw_files`. The results are stored in the appropriate antenna
-            # dictionary entry of `prizm_data` under a key given by the more
-            # recent file nomenclature associated with those files.
-            for old_file_name, dtype, file_name in old_raw_files:
+            # `old_time_raw_files`. The results are stored in the appropriate
+            # antenna dictionary entry of `prizm_data` under a key given by the
+            # more recent file nomenclature associated with those files.
+            for old_file_name, dtype, file_name in old_time_raw_files:
                 prizm_data[antenna][file_name] = read_raw_file(dirs,
                                                                old_file_name,
                                                                verbose=verbose,
                                                                dtype=dtype)
+        else:
+            # In case `first_ctime` does not fall within the time period which
+            # corresponds to the older timestamp files, that means only newer
+            # files will be read. The `prizm_data` timestamp entries are thus
+            # initialized with an empty NumPy array. This guarantees the next
+            # reading operation below can be performed even if no old timestamp
+            # data has been yet recorded in `prizm_data`.
+            for old_file_name, dtype, file_name in old_time_raw_files:
+                prizm_data[antenna][file_name] = np.array([])
+
+        # Checks whether `second_ctime` is larger than 1524730000. If so,
+        # attempts to read the timestamp information from those files listed in
+        # `new_time_raw_files`. Here the operation concatenates the output of
+        # `read_raw_file` to the `prizm_data` timestamp entries initialized
+        # above. This guarantees that the reading operation will work as
+        # expected in all scenarios, i.e., when there is only old data, or
+        # only new data, or a mix of old and new data.
+        if second_ctime > 1524730000:
+            # Verbose message.
+            if verbose:
+                print('Attempting to read the newer timestamp files.')
+
+            # Reads all '.raw' files in `dirs` whose names match the entries in
+            # `new_time_raw_files`. The results are temporatily stored in the
+            # NumPy array `new_time_data`. It is then concatenated to the
+            # timestamp information already stored or initialized in the antenna
+            # dictionary entry of `prizm_data`.
+            for new_file_name, dtype, file_name in new_time_raw_files:
+                new_time_data = read_raw_file(dirs,
+                                              new_file_name,
+                                              verbose=verbose,
+                                              dtype=dtype)
+                prizm_data[antenna][file_name] = np.concatenate((
+                                                 prizm_data[antenna][file_name],
+                                                 new_time_data
+                                                 ))
+
+        # Reads all remaining '.raw' files in `dirs` whose names match the
+        # entried in `raw_files`. The results are stored in the appropriate
+        # atenna dictionary entry of `prizm_data` with key given by the file
+        # name.
+        for file_name, dtype in raw_files:
+            prizm_data[antenna][file_name] = read_raw_file(dirs,
+                                                           file_name,
+                                                           verbose=verbose,
+                                                           dtype=dtype)
 
     # Auxiliary Data:
     # Checks whether `read_switch` is `True`. If so, the key `switch` is added

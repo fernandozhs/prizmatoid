@@ -943,7 +943,7 @@ def add_quality_flags(prizm_data, antennas=['70MHz', '100MHz']):
         # message is printed if that information is missing.
         if len(prizm_data[antenna]['time_sys_start.raw']) == 0:
             print(
-                  '`add_switch_flags`: no timestamp data was found for the '
+                  '`add_quality_flags`: no timestamp data was found for the '
                   + antenna
                   + ' antenna.'
                   )

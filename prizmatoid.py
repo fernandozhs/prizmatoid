@@ -597,18 +597,18 @@ def read_prizm_data(first_ctime, second_ctime, dir_top,
         ]
     switch_files = ['antenna.scio', 'res100.scio', 'res50.scio', 'short.scio']
     temp_files = [
-        ('temp_100A_bot_lna.raw', 'int32'), ('temp_100_ambient.raw', 'int32'),
-        ('temp_100A_noise.raw', 'int32'), ('temp_100A_switch.raw', 'int32'),
-        ('temp_100A_top_lna.raw', 'int32'), ('temp_100B_bot_lna.raw', 'int32'),
-        ('temp_100B_noise.raw', 'int32'), ('temp_100B_switch.raw', 'int32'),
-        ('temp_100B_top_lna.raw', 'int32'), ('temp_70A_bot_lna.raw', 'int32'),
-        ('temp_70_ambient.raw', 'int32'), ('temp_70A_noise.raw', 'int32'),
-        ('temp_70A_switch.raw', 'int32'), ('temp_70A_top_lna.raw', 'int32'),
-        ('temp_70B_bot_lna.raw', 'int32'), ('temp_70B_noise.raw', 'int32'),
-        ('temp_70B_switch.raw', 'int32'), ('temp_70B_top_lna.raw', 'int32'),
-        ('temp_pi.raw', 'int32'), ('temp_snapbox.raw', 'int32'),
-        ('time_pi.raw', 'int32'), ('time_start_therms.raw', 'int32'),
-        ('time_stop_therms.raw', 'int32'),
+        ('temp_100A_bot_lna.raw', 'float'), ('temp_100_ambient.raw', 'float'),
+        ('temp_100A_noise.raw', 'float'), ('temp_100A_switch.raw', 'float'),
+        ('temp_100A_top_lna.raw', 'float'), ('temp_100B_bot_lna.raw', 'float'),
+        ('temp_100B_noise.raw', 'float'), ('temp_100B_switch.raw', 'float'),
+        ('temp_100B_top_lna.raw', 'float'), ('temp_70A_bot_lna.raw', 'float'),
+        ('temp_70_ambient.raw', 'float'), ('temp_70A_noise.raw', 'float'),
+        ('temp_70A_switch.raw', 'float'), ('temp_70A_top_lna.raw', 'float'),
+        ('temp_70B_bot_lna.raw', 'float'), ('temp_70B_noise.raw', 'float'),
+        ('temp_70B_switch.raw', 'float'), ('temp_70B_top_lna.raw', 'float'),
+        ('temp_pi.raw', 'float'), ('temp_snapbox.raw', 'float'),
+        ('time_pi.raw', 'float'), ('time_start_therms.raw', 'float'),
+        ('time_stop_therms.raw', 'float'),
         ]
         
     # Lists the some old '.raw' file names, their respective data types, and

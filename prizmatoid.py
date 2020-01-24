@@ -895,9 +895,9 @@ def add_switch_flags(prizm_data, antennas=['70MHz', '100MHz']):
             # being recorded, respectively.
             data_time_start = prizm_data[antenna]['time_sys_start.raw']
             data_time_stop = prizm_data[antenna]['time_sys_stop.raw']
-            
+
             # Slices the data into chunks delimited in time by the entries in
-            # `times`. These are used to create a filter `filter_chunk` which
+            # `times`. These are used to create a filter `chunk_filter` which
             # picks only data matching the chunk under consideration.
             for chunk_start, chunk_end in zip(times[:-1], times[1:]):
                 condition = np.logical_and(data_time_start >= chunk_start[1],
@@ -913,6 +913,112 @@ def add_switch_flags(prizm_data, antennas=['70MHz', '100MHz']):
 
             # Adds flags to `prizm_data`.
             prizm_data[antenna]['switch_flags'][file_name] = flag
+
+    return
+
+
+def add_temp_flags(prizm_data, antennas=['70MHz', '100MHz']):
+    """ Creates a 'temp_flags' entry in a PRIZM data dictionary.
+
+    Adds a 'temp_flags' entry for each of the `antennas` featuring in the
+    input `prizm_data` dictionary. These new entries are based on the auxiliary
+    'temp' entry contained in that same dictionary which contains thermometry
+    information associated with different PRIZM internal components.
+
+    Args:
+        prizm_data: a dictionary containing all PRIZM data structured according
+            to the output of the function `read_prizm_data`.
+        antennas: a list containing the antennas for flag generation.
+
+    Returns:
+        The input dictionary with an additional entry with key 'temp_flags'
+        for each antenna listed in `antennas`. The new entry contains a NumPy
+        which flags indicating when temperature measurements were performed. A
+        typical output returned by this function would have the following
+        structure.
+
+        {
+        '70MHz': {
+            'pol0.scio': numpy.array,
+            ...,
+            'temp_flags': numpy.array,
+            },
+        '100MHz': {
+            'pol0.scio': numpy.array,
+            ...,
+            'time_sys_stop.raw',
+            'temp_flags': numpy.array,
+            },
+        'switch': {
+            'antenna.scio': numpy.array,
+            'res100.scio': numpy.array,
+            'res50.scio': numpy.array,
+            'short.scio': numpy.array,
+            }
+        }
+    """
+
+    # Adds flags for each antenna.
+    for antenna in antennas:
+
+        # Makes sure the input dictionary contains entries for antenna(s) of
+        # interest. An error message is printed if that information is missing.
+        if antenna not in prizm_data.keys():
+            print(
+                '`add_temp_flags`: the data for the '
+                + antenna
+                + ' antenna could not be found.'
+                )
+            continue
+
+        # Makes sure the input dictionary contains the timestamp data. An error
+        # message is printed if that information is missing.
+        if len(prizm_data[antenna]['time_sys_start.raw']) == 0:
+            print(
+                '`add_temp_flags`: no timestamp data was found for the '
+                + antenna
+                + ' antenna.'
+                )
+            continue
+
+        # Initializes the dictionary entry which will store the flags.
+        prizm_data[antenna]['temp_flags'] = {}
+
+        # Here `therms_time_start` and `therms_time_stop` contain the ctimes at
+        # which the data-taking associated with a the instrument's thermometers
+        # started and stopped, respectively.
+        therms_time_start = prizm_data['temp']['time_start_therms.raw']
+        therms_time_stop = prizm_data['temp']['time_stop_therms.raw']
+
+        # Initializes the NumPy array `flag` which will be used in the flags
+        # generation below.
+        flag = np.zeros_like(prizm_data[antenna]['time_sys_start.raw'],
+                             dtype='int')
+
+        # Takes the ctime data stored in `prizm_data` in preparation for the
+        # data chunk selection performed below. Here the NumPy arrays
+        # `data_time_start` and `data_time_stop` contain the times at which
+        # data (associated with any) given component started and stopped
+        # being recorded, respectively.
+        data_time_start = prizm_data[antenna]['time_sys_start.raw']
+
+        # Slices the data into chunks delimited in time by the entries in
+        # `therms_time_start` and therms_time_stop`. These are used to create a
+        # filter `chunk_filter` which picks only data matching the chunk under
+        # consideration. Notice that we add a buffer of `4.3` (corresponding
+        # to half of the sampling time in `data_time_start`) when generating
+        # `chunk_filter` in order to avoid creating single-sample flags.
+        for chunk_start, chunk_end in zip(therms_time_start, therms_time_stop):
+            condition = np.logical_and(data_time_start >= chunk_start - 4.3,
+                                       data_time_start <= chunk_end + 4.3)
+            chunk_filter = np.where(condition)[0]
+
+            # Assigns the value `1` to the portions of `flag` corresponding to
+            # the chunk under consideration.
+            flag[chunk_filter] = np.ones(len(chunk_filter), dtype='int')
+
+        # Adds flags to `prizm_data`.
+        prizm_data[antenna]['temp_flags'] = flag
 
     return
 

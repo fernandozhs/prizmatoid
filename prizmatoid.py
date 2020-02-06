@@ -20,7 +20,8 @@ import glob
 
 # Date and Time
 import time
-from datetime import datetime
+import suntime
+from datetime import datetime, timezone, timedelta
 
 
 
@@ -205,6 +206,44 @@ def timestamp_from_ctime(ctimes, format='%Y%m%d_%H%M%S'):
 
     # Returns the `dates` list.
     return dates
+
+
+def get_closest_slice(target_slice, list_slices):
+    """ Gets the slice in `list_slices` which is closest to `target_slice`.
+        
+        Selects and outputs the slice object listed in `list_slices` which is
+        closest to the `target_slice`. This is done by finding the slice in
+        `list_slices` whose center is closest to the center of `target_slice`.
+
+        Args:
+            target_slice: a single slice object of the form
+                'slice(start, stop, None)'.
+            list_slices: a list of slice objects of the form
+                'slice(start, stop, None)'.
+
+        Returns:
+            A single slice object from `list_slices` whose center is closest
+            to the center of `target_slice`.
+
+        Example(s):
+            >>> target_slice = slice(2, 5, None)
+            >>> list_slices = [slice(1, 3, None), slice(7, 10, None)]
+            >>> get_closest_slice(target_slice, list_slices)
+            >>> slice(1, 3, None)
+    """
+
+    # Creates a list composed of the distances between the centers of each
+    # slice object in `list_slices` and the center of `target_slice`.
+    distances = [
+                 np.r_[entry_slice].mean() - np.r_[target_slice].mean()
+                 for entry_slice in list_slices
+                 ]
+
+    # Finds which index of `distances` labels the smallest distance.
+    index = np.argmin(np.abs(distances))
+
+    # Returns the slice object in `list_slices` given by `index`.
+    return list_slices[index]
 
 
 def dir_from_ctime(first_ctime, second_ctime, dir_parent, n_digits=5):
@@ -591,7 +630,9 @@ def read_prizm_data(first_ctime, second_ctime, dir_top,
         ('sync_cnt1.raw', 'int32'), ('sync_cnt2.raw', 'int32'),
         ('sys_clk1.raw', 'int32'), ('sys_clk2.raw', 'int32'),
         ]
-    switch_files = ['antenna.scio', 'res100.scio', 'res50.scio', 'short.scio']
+    switch_files = [
+        'antenna.scio', 'res100.scio', 'res50.scio', 'short.scio', 'noise.scio'
+        ]
     temp_files = [
         ('temp_100A_bot_lna.raw', 'float'), ('temp_100_ambient.raw', 'float'),
         ('temp_100A_noise.raw', 'float'), ('temp_100A_switch.raw', 'float'),
@@ -933,9 +974,9 @@ def add_temp_flags(prizm_data, antennas=['70MHz', '100MHz']):
     Returns:
         The input dictionary with an additional entry with key 'temp_flags'
         for each antenna listed in `antennas`. The new entry contains a NumPy
-        which flags indicating when temperature measurements were performed. A
-        typical output returned by this function would have the following
-        structure.
+        array which indicates when temperature measurements were being
+        performed. A typical output returned by this function would have the
+        following structure.
 
         {
         '70MHz': {
@@ -1003,7 +1044,7 @@ def add_temp_flags(prizm_data, antennas=['70MHz', '100MHz']):
         data_time_start = prizm_data[antenna]['time_sys_start.raw']
 
         # Slices the data into chunks delimited in time by the entries in
-        # `therms_time_start` and therms_time_stop`. These are used to create a
+        # `therms_time_start` and `therms_time_stop`. These are used to create a
         # filter `chunk_filter` which picks only data matching the chunk under
         # consideration. Notice that we add a buffer of `4.3` (corresponding
         # to half of the sampling time in `data_time_start`) when generating
@@ -1019,6 +1060,159 @@ def add_temp_flags(prizm_data, antennas=['70MHz', '100MHz']):
 
         # Adds flags to `prizm_data`.
         prizm_data[antenna]['temp_flags'] = flag
+
+    return
+
+
+def add_nighttime_flags(prizm_data, antennas=['70MHz', '100MHz']):
+    """ Creates a 'nighttime_flags' entry in a PRIZM data dictionary.
+    
+    Adds a 'nighttime_flags' entry for each of the `antennas` featuring in the
+    input `prizm_data` dictionary. These new entries are based on the sunset
+    time at the experiment's location and flags the data which was acquired by
+    the instrument during nighttime.
+
+    Args:
+        prizm_data: a dictionary containing all PRIZM data structured according
+            to the output of the function `read_prizm_data`.
+        antennas: a list containing the antennas for flag generation.
+
+    Returns:
+        The input dictionary with an additional entry with key 'nighttime_flags'
+        for each antenna listed in `antennas`. The new entry contains a NumPy
+        array which indicates which portions of the data were recorded during
+        nighttime. A typical output returned by this function would have the
+        following structure.
+
+        {
+        '70MHz': {
+            'pol0.scio': numpy.array,
+            ...,
+            'nighttime_flags': numpy.array,
+            },
+        '100MHz': {
+            'pol0.scio': numpy.array,
+            ...,
+            'time_sys_stop.raw',
+            'nighttime_flags': numpy.array,
+            },
+        'switch': {
+            'antenna.scio': numpy.array,
+            'res100.scio': numpy.array,
+            'res50.scio': numpy.array,
+            'short.scio': numpy.array,
+            }
+        }
+    """
+
+    # Adds flags for each antenna.
+    for antenna in antennas:
+
+        # Makes sure the input dictionary contains entries for antenna(s) of
+        # interest. An error message is printed if that information is missing.
+        if antenna not in prizm_data.keys():
+            print(
+                '`add_nighttime_flags`: the data for the '
+                + antenna
+                + ' antenna could not be found.'
+                )
+            continue
+
+        # Makes sure the input dictionary contains the timestamp data. An error
+        # message is printed if that information is missing.
+        if len(prizm_data[antenna]['time_sys_start.raw']) == 0:
+            print(
+                '`add_nighttime_flags`: no timestamp data was found for the '
+                + antenna
+                + ' antenna.'
+                )
+            continue
+
+        # Extracts the NumPy array of data ctimes stored in `prizm_data`.
+        ctimes = prizm_data['100MHz']['time_sys_start.raw']
+
+        # Obtains the timestamps associated with these `ctimes`.
+        dates = timestamp_from_ctime(ctimes)
+
+        # Transforms the entries of `dates` into datetime objects.
+        dates = [
+            datetime.strptime(entry, '%Y%m%d_%H%M%S')
+            for entry in dates
+            ]
+
+        # Artificially includes a one-day buffer to `dates` in order to
+        # facilitate the flagging of nighttime data below.
+        previous_to_first_day = dates[0] - timedelta(days=1)
+        next_to_last_day = dates[-1] + timedelta(days=1)
+        dates = [previous_to_first_day] + dates + [next_to_last_day]
+
+        # Initializes the geographial location of Marion island for the purpose
+        # of obtaining accurate sunset and sunrise times for different periods
+        # of the year.
+        marion = suntime.Sun(lat=-46.88694, lon=37.819638)
+
+        # Obtains the sunrise and sunset times for the time period spanned by
+        # `dates`.
+        sunset_times = [
+            marion.get_sunset_time(entry)
+            for entry in dates
+            ]
+
+        sunrise_times = [
+            marion.get_sunrise_time(entry)
+            for entry in dates
+            ]
+
+        # Keeps only the unique entries featuring in `sunset_times` and
+        # `sunrise_times`.
+        sunset_times = np.unique(sunset_times)
+        sunrise_times = np.unique(sunrise_times)
+
+        # Sets the reference time `ref_time` used in the definition of ctime
+        # (i.e., the number of seconds since 1970/1/1).
+        ref_time = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+        # Transforms the datetime objects in `sunset_times` to ctimes. As a
+        # buffer,
+        # we also add an hour (3600 seconds) to the sunset ctimes and subtract
+        # the
+        # same amount of seconds from the sunrise ctimes.
+        sunset_ctimes = [
+                        (entry - ref_time).total_seconds() + 3600
+                        for entry in sunset_times
+                        ]
+
+        sunrise_ctimes = [
+                        (entry - ref_time).total_seconds() - 3600
+                        for entry in sunrise_times
+                        ]
+
+        # Deletes the first entry of `sunrise_ctimes` and the last entry of
+        # `sunset_ctimes`. This creates an offset between the two NumPy arrays
+        # which makes the process of finding the nighttime portions of the data a
+        # lot simpler.
+        sunrise_ctimes = sunrise_ctimes[1:]
+        sunset_ctimes = sunset_ctimes[:-1]
+
+        # Initializes the NumPy array `flag` which will be used in the flags
+        # generation below.
+        flag = np.zeros_like(prizm_data[antenna]['time_sys_start.raw'],
+                            dtype='int')
+
+        # Slices the data into chunks delimited in time by the entries in
+        # `sunset_ctimes` and `sunrise_ctimes`. These are used to create a
+        # `nighttime_filter` which picks only nighttime data.
+        for nighttime_start, nighttime_end in zip(sunset_ctimes, sunrise_ctimes):
+            condition = np.logical_and(ctimes >= nighttime_start,
+                                       ctimes <= nighttime_end)
+            nighttime_filter = np.where(condition)[0]
+
+            # Assigns the value `1` to the portions of `flag` corresponding to
+            # the chunk under consideration.
+            flag[nighttime_filter] = np.ones(len(nighttime_filter), dtype='int')
+
+        # Adds flags to `prizm_data`.
+        prizm_data[antenna]['nighttime_flags'] = flag
 
     return
 
@@ -1121,6 +1315,342 @@ def add_quality_flags(prizm_data, antennas=['70MHz', '100MHz']):
 
         # Adds `fft_flag` to `prizm_data` under the new entry 'fft_of_cnt.raw'.
         prizm_data[antenna]['quality_flags']['fft_of_cnt.raw'] = fft_flag
+
+    return
+
+
+def get_temp_from_slice(prizm_data, antenna, target_slice):
+    """
+    """
+
+    # Gathers the temperature flags generated by `add_temp_flags`.
+    temp_flags = prizm_data[antenna]['temp_flags']
+
+    # Converts the above flag array into NumPy masked arrays.
+    temp_flags = np.ma.array(temp_flags, mask=temp_flags)
+
+    # Obtains the a list of slices which group the different flags into
+    # contiguous clumps.
+    temp_clumps = np.ma.clump_masked(temp_flags)
+
+    # Finds the slice in the `list_slices` of temperature measurements which is
+    # closest to the input `target_slice`.
+    temp_slice = get_closest_slice(target_slice, temp_clumps)
+
+    # Uses `temp_slice` to determine which ctimes in `prizm_data` correspond to
+    # the temperature measurement of interest.
+    ctimes = prizm_data[antenna]['time_sys_start.raw'][temp_slice]
+
+    # Loads the thermometer measurement times.
+    therms_time_start = prizm_data['temp']['time_start_therms.raw']
+
+    # Determines the `index` which is satisfied by those entries of
+    # `therms_time_start` corresponding to those `ctimes` selected above.
+    index = np.where(therms_time_start >= ctimes[0])[0][0]
+
+    # Selects the appropriate temperature '.raw' file.
+    temp_raw_file = 'temp_' + antenna[:-3] + '_ambient.raw'
+
+    # Uses `index` to extract the ambient temperatures of interest, and store
+    # its value in `temp_amb`.
+    temp_amb = prizm_data['temp'][temp_raw_file][index]
+
+    # Returns the desired temperatures.
+    return temp_amb
+
+
+def get_spectrum_from_slice(channel_spectra, slice):
+    """
+    """
+
+    # Finds the middle index associated with of the input `slice`.
+    index = int(np.r_[slice].mean())
+
+    # Extracts the spectrum associated with the above `index`.
+    spectrum = channel_spectra[index]
+
+    # Returns the obtained spectrum.
+    return spectrum
+
+
+def add_single_gain(prizm_data, antenna, switch_file, clump_nmbr, short_slice, res_slice):
+    """
+    """
+
+    # Sets some shorter names for convenience.
+    gains_pol0 = prizm_data[antenna]['gain']['pol0.scio']
+    gains_pol1 = prizm_data[antenna]['gain']['pol1.scio']
+
+    # Checks whether the input `short_slice` and `res_slice` are empty. If so,
+    # the gain correction is added to `prizm_data` as an array of zeroes.
+    if short_slice == slice(0, 0, None) and res_slice == slice(0, 0, None):
+        # Sets the gain the zero.
+        zero_gain = np.zeroes(prizm_data[antenna]['pol0.scio'].shape[1])
+
+        # Adds the above gain entry to `prizm_data`.
+        gains_pol0[switch_file] = np.stack(gains_pol0[switch_file], zero_gain)
+        gains_pol1[switch_file] = np.stack(gains_pol1[switch_file], zero_gain)
+
+    # Else, compute the gain as usual for each polarization channel and store
+    # that information in `prizm_data`.
+    else:
+        # Find the ambient temperature measurement which was performed
+        # around the time the instrument observation mode corresponded
+        # to `short.scio`.
+        temp = get_temp_from_slice(prizm_data, antenna, short_slice)
+
+        # Gets the central cross-sections of the `short.scio` spectra for both
+        # polarization channels.
+        short_pol0 = get_spectrum_from_slice(prizm_data[antenna]['pol0.scio'],
+                                            short_slice
+                                            )
+
+        short_pol1 = get_spectrum_from_slice(prizm_data[antenna]['pol1.scio'],
+                                            short_slice
+                                            )
+
+        # Gets the central cross-sections of either the `res50.scio` or
+        # `res100.scio`spectra for both polarization channels.
+        res_pol0 = get_spectrum_from_slice(prizm_data[antenna]['pol0.scio'],
+                                           res_slice
+                                           )
+
+        res_pol1 = get_spectrum_from_slice(prizm_data[antenna]['pol1.scio'],
+                                           res_slice
+                                           )
+
+        # Computes the gain corrections for each polarization.
+        pol0_gain = temp/(res_pol0 - short_pol0)
+        pol1_gain = temp/(res_pol1 - short_pol1)
+
+        # Stores the resulting gain correction arrays under the appropriate
+        # entries of the `prizm_data` data dictionary.
+        gains_pol0[switch_file][clump_nmbr,:] = pol0_gain
+        gains_pol1[switch_file][clump_nmbr,:] = pol1_gain
+
+    return
+
+
+def add_multiple_gains(prizm_data, antennas=['70MHz', '100MHz']):
+    """ Short documentation string.
+
+    Long documentation string.
+
+    Args:
+        prizm_data: a dictionary containing all PRIZM data structured according
+            to the output of the function `read_prizm_data`.
+        antennas: a list containing the antennas for flag generation.
+
+    Returns:
+        Return object documentation string.
+    """
+
+    # Get the gain corrections for each antenna.
+    for antenna in antennas:
+
+        # Gathers the switch flags generated by `add_switch_flags`.
+        antenna_flags = prizm_data[antenna]['switch_flags']['antenna.scio']
+        short_flags = prizm_data[antenna]['switch_flags']['short.scio']
+        res50_flags = prizm_data[antenna]['switch_flags']['res50.scio']
+        res100_flags = prizm_data[antenna]['switch_flags']['res100.scio']
+
+        # Trims the first and final entries of the switch flags gathered above
+        # in order to avoid leakage of information from one observing mode to
+        # another.
+        antenna_flags = shrink_flag(antenna_flags, (1,1))
+        short_flags = shrink_flag(short_flags, (1,1))
+        res50_flags = shrink_flag(res50_flags, (1,1))
+        res100_flags = shrink_flag(res100_flags, (1,1))
+
+        # Converts the above flag arrays into NumPy masked arrays. These have
+        # many useful properties which make it much easier to split flags into
+        # contiguous clumps.
+        antenna_flags = np.ma.array(antenna_flags, mask=antenna_flags)
+        short_flags = np.ma.array(short_flags, mask=short_flags)
+        res50_flags = np.ma.array(res50_flags, mask=res50_flags)
+        res100_flags = np.ma.array(res100_flags, mask=res100_flags)
+
+        # Obtains the a NumPy array of slices which group the different flags
+        # into contiguous clumps.
+        antenna_clumps = np.array(np.ma.clump_masked(antenna_flags))
+        short_clumps = np.array(np.ma.clump_masked(short_flags))
+        res50_clumps = np.array(np.ma.clump_masked(res50_flags))
+        res100_clumps = np.array(np.ma.clump_masked(res100_flags))
+
+        # Determines the number of frequencies spanned by the data.
+        n_clumps = len(antenna_clumps)
+        n_freq = prizm_data[antenna]['pol0.scio'].shape[1]
+
+        # Initializes the `prizm_data` entries which will hold the gain
+        # corrections.
+        prizm_data[antenna]['gain'] = {
+            'pol0.scio': {'res50.scio': np.zeros((n_clumps, n_freq)),
+                          'res100.scio': np.zeros((n_clumps, n_freq)),
+                          },
+            'pol1.scio':  {'res50.scio': np.zeros((n_clumps, n_freq)),
+                           'res100.scio': np.zeros((n_clumps, n_freq)),
+                           },
+            }
+
+        # Creates auxiliary arrays to facilitate the comparison between the
+        # clumps associated with the different observing modes. These are
+        # essentially the shifted versions of `antenna_clumps` with either its
+        # last entry deleted and an artificial initial entry given by
+        # `start_clump`, or first entry deleted and an artificial last entry
+        # given by `end_clump`. Here we use a shift parameter of `40` to create
+        # `start_clump` and `end_clump`, since this is on average the amount of
+        # time samples that exist between two entries of `antenna_clumps`.
+        start_clump = slice(antenna_clumps[0].start - 40,
+                            antenna_clumps[0].stop - 40 + 1,
+                            None)
+        previous_clumps = np.delete(antenna_clumps, -1)
+        previous_clumps = np.insert(previous_clumps, 0, start_clump)
+
+        end_clump = slice(antenna_clumps[-1].start + 40,
+                          antenna_clumps[-1].stop + 40 + 1,
+                          None)
+        next_clumps = np.delete(antenna_clumps, 0)
+        next_clumps = np.insert(next_clumps, -1, end_clump)
+
+        # Zip the different verions of `antenna_clumps` generated above into an
+        # iterator which will help us make useful comparisons below.
+        clumps = zip(previous_clumps, antenna_clumps, next_clumps)
+
+        # Loops over all `antenna_clumps`, and computes the gain correction for
+        # the portion of the data to which they correspond. The result for each
+        # clump is stored as a NumPy array in `prizm_data` dictionary.
+        for i, (previous_clump, current_clump, next_clump) in enumerate(clumps):
+            # Checks whether the `current_clump` has accompanying `short.scio`
+            # and `res50.scio`, as well as `short.scio` and `res100.scio` clumps
+            # occurring either all before or both after it.
+            
+            # Determines which clumps occur immediatelly after.
+            short_after = np.logical_and(short_clumps > current_clump,
+                                         short_clumps < next_clump)
+            res50_after = np.logical_and(res50_clumps > current_clump,
+                                         res50_clumps < next_clump)
+            res100_after = np.logical_and(res100_clumps > current_clump,
+                                          res100_clumps < next_clump)
+
+            # Obtains the truth value of the intersection of `short_after` with
+            # `res50_after` and `res100_after`.
+            short_res50_after = np.logical_and(short_after.any() == True,
+                                               res50_after.any() == True)
+            short_res100_after = np.logical_and(short_after.any() == True,
+                                                res100_after.any() == True)
+
+            # Filters those clumps which occur immediatelly before.
+            short_before = np.logical_and(short_clumps > previous_clump,
+                                          short_clumps < current_clump)
+            res50_before = np.logical_and(res50_clumps > previous_clump,
+                                          res50_clumps < current_clump)
+            res100_before = np.logical_and(res100_clumps > previous_clump,
+                                           res100_clumps < current_clump)
+
+            # Obtains the truth value of the intersection of `short_before` with
+            # `res50_before` and `res100_before`.
+            short_res50_before = np.logical_and(short_before.any() == True,
+                                                res50_before.any() == True)
+            short_res100_before = np.logical_and(short_before.any() == True,
+                                                res100_before.any() == True)
+
+            # Computes the gain correction using the those clumps associated
+            # with `res50.scio` and `short.scio`. It always attempts to use
+            # those auxiliary clumps that come after the `current_clump`. When
+            # those are incomplete or not present, it attempts to use those
+            # auxiliary clumps that come before the `current_clump`. If these
+            # are also incomplete or not present, the gain correction is then
+            # set to an array of zeros.
+            if short_res50_after == True:
+                # Picks the relevant clump associated with `short.scio` and
+                # `res50.scio`.
+                short_clump = short_clumps[short_after][0]
+                res50_clump = res50_clumps[res50_after][0]
+
+                # Adds the gain correction for the `current_clump`.
+                add_single_gain(prizm_data,
+                                antenna,
+                                'res50.scio',
+                                i,
+                                short_clump,
+                                res50_clump)
+
+            elif short_res50_before == True:
+                # Picks the relevant clump associated with `short.scio` and
+                # `res50.scio`.
+                short_clump = short_clumps[short_before][0]
+                res50_clump = res50_clumps[res50_before][0]
+
+                # Adds the gain correction for the `current_clump`.
+                add_single_gain(prizm_data,
+                                antenna,
+                                'res50.scio',
+                                i,
+                                short_clump,
+                                res50_clump)
+
+            else:
+                # Sets the clumps associated with `short.scio` and `res50.scio`
+                # as empty slices.
+                short_clump = slice(0, 0, None)
+                res50_clump = slice(0, 0, None)
+            
+                # Set gain corrections to NumPy arrays of zeros.
+                add_single_gain(prizm_data,
+                                antenna,
+                                'res50.scio',
+                                i,
+                                short_clump,
+                                res50_clump)
+
+            # Computes the gain correction using the those clumps associated
+            # with `res100.scio` and `short.scio`. It always attempts to use
+            # those auxiliary clumps that come after the `current_clump`. When
+            # those are incomplete or not present, it attempts to use those
+            # auxiliary clumps that come before the `current_clump`. If these
+            # are also incomplete or not present, the gain correction is then
+            # set to an array of zeros.
+            if short_res100_after == True:
+                # Picks the relevant clump associated with `short.scio` and
+                # `res100.scio`.
+                short_clump = short_clumps[short_after][0]
+                res100_clump = res100_clumps[res100_after][0]
+
+                # Adds the gain correction for the `current_clump`.
+                add_single_gain(prizm_data,
+                                antenna,
+                                'res100.scio',
+                                i,
+                                short_clump,
+                                res100_clump)
+
+            elif short_res100_before == True:
+                # Picks the relevant clump associated with `short.scio` and
+                # `res100.scio`.
+                short_clump = short_clumps[short_before][0]
+                res100_clump = res100_clumps[res100_before][0]
+
+                # Adds the gain correction for the `current_clump`.
+                add_single_gain(prizm_data,
+                                antenna,
+                                'res100.scio',
+                                i,
+                                short_clump,
+                                res100_clump)
+
+            else:
+                # Sets the clumps associated with `short.scio` and `res50.scio`
+                # as empty slices.
+                short_clump = slice(0, 0, None)
+                res100_clump = slice(0, 0, None)
+
+                # Set gain corrections to NumPy arrays of zeros.
+                add_single_gain(prizm_data,
+                                antenna,
+                                i,
+                                'res50.scio',
+                                short_clump,
+                                res100_clump)
 
     return
 

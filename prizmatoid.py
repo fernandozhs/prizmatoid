@@ -1218,7 +1218,7 @@ def add_nighttime_flags(prizm_data, antennas=['70MHz', '100MHz']):
     return
 
 
-def add_moon_flags(prizm_data, antennas=['70MHz', '100MHz'], altitute_buffer=10):
+def add_moon_flags(prizm_data, antennas=['70MHz', '100MHz'], altitude_buffer=10):
     """ Creates a 'moon_flags' entry in a PRIZM data dictionary.
     
     Adds a 'moon_flags' entry for each of the `antennas` featuring in the input
@@ -1315,9 +1315,9 @@ def add_moon_flags(prizm_data, antennas=['70MHz', '100MHz'], altitute_buffer=10)
             altitude = moon.alt
 
             # Adds an entry to `flags`.
-            if altitude > abs(altitude_buffer)
+            if altitude > abs(altitude_buffer):
                 flags[entry] = 1
-            elif altitude < -abs(altitude_buffer)
+            elif altitude < -abs(altitude_buffer):
                 flags[entry] = -1
 
         # Adds flags to `prizm_data`.

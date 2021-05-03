@@ -3,6 +3,7 @@ import numpy as np
 
 # SciPy
 from scipy import interpolate
+from scipy import ndimage
 
 # Copy
 import copy
@@ -1069,8 +1070,8 @@ def add_temp_flags(prizm_data, antennas=['70MHz', '100MHz']):
         # Here `therms_time_start` and `therms_time_stop` contain the ctimes at
         # which the data-taking associated with a the instrument's thermometers
         # started and stopped, respectively.
-        therms_time_start = prizm_data['temp']['time_start_therms.raw']
-        therms_time_stop = prizm_data['temp']['time_stop_therms.raw']
+        therms_time_start = prizm_data['switch']['time_start_therms.raw']
+        therms_time_stop = prizm_data['switch']['time_stop_therms.raw']
 
         # Initializes the NumPy array `flag` which will be used in the flags
         # generation below.
@@ -1522,6 +1523,71 @@ def add_metadata_flags(prizm_data, antennas=['70MHz', '100MHz']):
 
     #
     #
+    return
+
+
+def add_rfi_masks(prizm_data, antennas=['70MHz', '100MHz'], threshold=3, median_filter_window=5):
+    """ Creates a 'RFI_masks' entry in a PRIZM data dictionary. """
+
+    # Adds flags for each antenna.
+    for antenna in antennas:
+
+        # Makes sure the input dictionary contains entries for antenna(s) of
+        # interest. An error message is printed if that information is missing.
+        if antenna not in prizm_data.keys():
+            print(
+                  '`add_rfi_masks`: the data for the '
+                  + antenna
+                  + ' antenna could not be found.'
+                  )
+            continue
+
+        # Makes sure the input dictionary constains a 'switch_flags' entry for
+        # the current antenna. An error message is printed if that information is missing.
+        if 'switch_flags' not in prizm_data[antenna].keys():
+            print(
+                  '`add_rfi_masks`: the switch flags for the '
+                  + antenna
+                  + ' antenna could not be found.'
+                  )
+            continue
+
+        # Recovers the '.scio' file names associated with the current `antenna`.
+        antenna_files = [
+                         file
+                         for file in prizm_data[antenna].keys()
+                         if 'pol' in file
+                         ]
+
+        # Initializes the `prizm_data` dictionary entry which will store the RFI masks for the current `antenna`.
+        prizm_data[antenna]['RFI_masks'] = {}
+
+        # Loads flags which will allow us to extract the `antenna` data alone (i.e., skipping the switch calibration states).
+        select_antenna = (shrink_flag(prizm_data[antenna]['switch_flags']['antenna.scio'], (1,1)) == 1)
+
+        # Adds flags for each polarization channel.
+        for file in antenna_files:
+
+            # Takes the logarithm of the data.
+            logdata = 10*np.log10(prizm_data[antenna][file][select_antenna])
+
+            # Extracts the median for each frequency bin.
+            medians = np.median(logdata, axis=0)
+
+            # Flattens the data logarithm by subtracting the medians computed above.
+            flattened = logdata - medians
+
+            # Median-filters the flattened data logarithm.
+            filtered = ndimage.median_filter(flattened, [1, median_filter_window])
+
+            # Computes the quantity from which the RFI mask will be extracted.
+            corrected = flattened - filtered
+            MAD = np.median(np.abs(corrected - np.median(corrected)))
+
+            # Stores the RFI mask for the current `antenna` and `file`.
+            prizm_data[antenna]['RFI_masks'][file] = (corrected - np.median(corrected) > threshold*MAD)
+
+    return
 
 
 def get_temp_from_slice(prizm_data, antenna, target_slice):

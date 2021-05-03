@@ -11,7 +11,7 @@ import scio
 import time
 
 
-def load_multiple_data(ctime_intervals, components, verbose=True):
+def load_multiple_data(ctime_intervals, components, filters=[], patch=True, verbose=True):
     """ Loads PRIZM data associated with a given instrument component and ctime interval. """
 
     # Initializes the dictionary which will hold the data of interest.
@@ -21,12 +21,12 @@ def load_multiple_data(ctime_intervals, components, verbose=True):
             }
 
     # Retrieves the metadata entries associated with the input ctime intervals and instrument components.
-    metadata_entries = retrieve_multiple_metadata(ctime_intervals, components)
+    metadata_entries = retrieve_multiple_metadata(ctime_intervals, components, filters)
 
     # Loads and patches the PRIZM data associated with the input ctime intervals and instrument components.
     for metadata_entry in metadata_entries:
         # Loads and patches the PRIZM data associated with the current metadata entry.
-        partial_data = load_data(metadata_entry, verbose)
+        partial_data = load_data(metadata_entry, patch, verbose)
 
         # Merges loaded and patched data with the data dictionary to be returned.
         data = merge_data(data, partial_data)
@@ -48,12 +48,16 @@ def merge_data(primary_data, secondary_data):
 
                 # Merges '.scio' files:
                 if '.scio' in file:
-                    primary_data[component][file] = np.vstack((primary_data[component][file], secondary_data[component][file]))
+                    # Checks whether any of the arrays being stacked are empty in order to avoid dimensionality errors.
+                    if len(primary_data[component][file]) == 0:
+                        primary_data[component][file] = secondary_data[component][file]
+                    elif len(secondary_data[component][file]) != 0:
+                        primary_data[component][file] = np.vstack((primary_data[component][file], secondary_data[component][file]))
 
                 # Merges '.raw' files:
                 if '.raw' in file:
                     primary_data[component][file] = np.hstack((primary_data[component][file], secondary_data[component][file]))
-            
+
             else:
                 # Assimilates new files.
                 primary_data[component][file] = secondary_data[component][file]
@@ -61,7 +65,7 @@ def merge_data(primary_data, secondary_data):
     return primary_data
 
 
-def load_data(metadata, verbose=True):
+def load_data(metadata, patch=True, verbose=True):
     """ Loads and patches PRIZM data associated with a given metadatabase entry. """
 
     # Extracts the component associated with the input `metadata`.
@@ -96,14 +100,15 @@ def load_data(metadata, verbose=True):
                                              verbose,
                                              )
 
-    # Loads and applies all patch files listed in the input `metadata`.
-    for file_name in metadata['patch_files']:
-        data[component] = apply_patch(
-                                      data[component],
-                                      patches_subdirectory,
-                                      file_name,
-                                      verbose
-                                      )
+    if patch:
+        # Loads and applies all patch files listed in the input `metadata`.
+        for file_name in metadata['patch_files']:
+            data[component] = apply_patch(
+                                          data[component],
+                                          patches_subdirectory,
+                                          file_name,
+                                          verbose
+                                          )
 
     return data
 
@@ -324,7 +329,7 @@ def read_raw_file(dirs, file_name, dtype, verbose):
     return raw_data
 
 
-def retrieve_multiple_metadata(ctime_intervals, components):
+def retrieve_multiple_metadata(ctime_intervals, components, filters=[]):
     """ Retrieves the PRIZM metadata associated with multiple instrument components and ctime intervals. """
 
     # Initializes the list which will hold the `metadata` entries of interest.
@@ -337,7 +342,7 @@ def retrieve_multiple_metadata(ctime_intervals, components):
         for initial_ctime, final_ctime in ctime_intervals:
 
             # Retrieves the `metadata_entries` of interest.
-            metadata_entries = retrieve_metadata(initial_ctime, final_ctime, component)
+            metadata_entries = retrieve_metadata(initial_ctime, final_ctime, component, filters)
 
             # Stores the entries obtained above.
             for metadata_entry in metadata_entries:
@@ -350,7 +355,7 @@ def retrieve_multiple_metadata(ctime_intervals, components):
     return retrieved_metadata
 
 
-def retrieve_metadata(initial_ctime, final_ctime, component):
+def retrieve_metadata(initial_ctime, final_ctime, component, filters=[]):
     """ Retrieves the PRIZM metadata associated with a given instrument component and ctime interval. """
 
     # Checks whether `initial_ctime` < `final_ctime`. If not, the values of these inputs are swapped.
@@ -363,14 +368,31 @@ def retrieve_metadata(initial_ctime, final_ctime, component):
 
     # Collects all `metadatabase` entries associated with the input ctime range.
     retrieved_metadata = [
-                          metadata
+                          metadata_entry
                           for key in metadatabase[component].keys()
-                          for metadata in metadatabase[component][key]
+                          for metadata_entry in metadatabase[component][key]
                           if key >= initial_key and key < final_key
                           ]
 
+    # Apply the input filters.
+    retrieved_metadata = filter_metadata(retrieved_metadata, filters)
+
     # Returns a list containing the desired `metadata` entries.
     return retrieved_metadata
+
+
+def filter_metadata(metadata, filters=[]):
+    """ Discards antenna metadata entries lacking the fields listed in the input filter list. """
+    
+    # The `metadata` entries to be discarded.
+    filtered_metadata = [
+                         metadata_entry
+                         for metadata_entry in metadata
+                         if metadata_entry['component'] == 'switch'
+                         or all(len(metadata_entry[field]) != 0 for field in filters)
+                         ]
+
+    return filtered_metadata
 
 
 # User-defined directories.
@@ -409,8 +431,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_start.raw','float','time_sys_start.raw'),('time_stop.raw','float','time_sys_stop.raw')],
              'patch_files': [],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1524500618,1524600730],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -424,8 +446,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_start.raw','float','time_sys_start.raw'),('time_stop.raw','float','time_sys_stop.raw')],
              'patch_files': [],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1524600746,1524637710],
+             'polarization_1': [],
              'temperature': True
             },
 
@@ -436,8 +458,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_start.raw','float','time_sys_start.raw'),('time_stop.raw','float','time_sys_stop.raw')],
              'patch_files': [],
-             'polarization_0': False,
-             'polarization_1': True,
+             'polarization_0': [],
+             'polarization_1': [1524658043,1524700431],
              'temperature': True
             },
         ],
@@ -451,8 +473,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_start.raw','float','time_sys_start.raw'),('time_stop.raw','float','time_sys_stop.raw')],
              'patch_files': ['trimming.npy'],
-             'polarization_0': False,
-             'polarization_1': True,
+             'polarization_0': [],
+             'polarization_1': [1524700448,1524723375],
              'temperature': True
             },
 
@@ -463,8 +485,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': ['reordering.npy','offsetting.npy'],
-             'polarization_0': False,
-             'polarization_1': True,
+             'polarization_0': [],
+             'polarization_1': [1524726393,1524795685],
              'temperature': True
             },
         ],
@@ -478,8 +500,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': ['offsetting.npy'],
-             'polarization_0': False,
-             'polarization_1': True,
+             'polarization_0': [],
+             'polarization_1': [1524901435,1524934407],
              'temperature': True
             },
         ],
@@ -492,9 +514,9 @@ metadatabase = {
              'ctimes': [1535726612,1535730223,1535733828,1535737434,1535741034,1535742004,1535745607,1535749210,1535752550,1535752912,1535754016,1535755470,1535756625,1535756675,1535757338,1535757535,1535757758,1535758689,1535758800,1535758976,1535759276,1535759503,1535759635,1535759810,1535760015,1535760038,1535770819,1535770960,1535771352,1535772335,1535773768,1535774786,1535775152,1535776991,1535777261,1535778542,1535778808,1535780782,1535781489,1535781811,1535782670,1535782923,1535783578,1535784415,1535784495,1535785037,1535785207,1535785642,1535789244,1535792852,1535794827,1535794890,1535795156,1535795871,1535796086,1535796110,1535796371,1535796492,1535796767,1535796926,1535797245,1535797360,1535797410,1535797610,1535797966,1535798062,1535798483,1535798541,1535799093,1535799130,1535799531,1535799638],
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
-             'patch_files': ['reordering.npy','offsetting.npy','trimming.npy'],
-             'polarization_0': True,
-             'polarization_1': False,
+             'patch_files': ['reordering.npy','trimming.npy'],
+             'polarization_0': [1535726620,1535800071],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -508,8 +530,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': [],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1536201218,1536225832],
+             'polarization_1': [],
              'temperature': True
             },
 
@@ -520,8 +542,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': [],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1536233071,1536299981],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -535,8 +557,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': ['reordering.npy','offsetting.npy','trimming.npy'],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1537108262,1537203116],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -550,8 +572,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': [],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1538404724,1538501452],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -564,9 +586,9 @@ metadatabase = {
              'ctimes': [1539527455,1539531066,1539532237,1539532360,1539532747,1539536352,1539539953,1539543214,1539543554,1539544520,1539545002,1539545744,1539546404,1539546771,1539547323,1539547360,1539547687,1539547931,1539548774,1539549252,1539549380,1539550199,1539550919,1539552421,1539552510,1539554612,1539555415,1539555495,1539555868,1539556704,1539557213,1539557280,1539557576,1539557991,1539558050,1539559388,1539559520,1539561628,1539569119,1539569472,1539570269,1539570410,1539570832,1539572745,1539573015,1539573799,1539574549,1539575576,1539577397,1539578320,1539578405,1539579182,1539580201,1539580350,1539582785,1539585504,1539585982,1539589589,1539589675,1539590248,1539591175,1539594780,1539597287,1539597355,1539597621,1539597987,1539598604,1539598999,1539599689],
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
-             'patch_files': ['reordering.npy','offsetting.npy','trimming.npy'],
-             'polarization_0': True,
-             'polarization_1': False,
+             'patch_files': ['reordering.npy','offsetting.npy'],
+             'polarization_0': [1539527463,1539601140],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -580,8 +602,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': [],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1540480560,1540500067],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -594,9 +616,9 @@ metadatabase = {
              'ctimes': [1541949307,1541952917,1541955498,1541955521,1541955778,1541957215,1541958562,1541958979,1541959626,1541960406,1541961252,1541963432,1541964220,1541964599,1541964843,1541964927,1541965175,1541965337,1541966373,1541967106,1541970708,1541974312,1541975997,1541976372,1541976673,1541977129,1541977317,1541978136,1541978782,1541979420,1541979799,1541980825,1541980847,1541991681,1541992984,1541993324,1541995223,1541995407,1541998081,1541998222,1541998337,1541998482,1541999181],
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
-             'patch_files': ['reordering.npy','offsetting.npy'],
-             'polarization_0': True,
-             'polarization_1': False,
+             'patch_files': ['offsetting.npy'],
+             'polarization_0': [1541949315,1541988914],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -610,8 +632,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': [],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1542896216,1542902681],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -625,8 +647,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': [],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1544366104,1544399983],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -640,8 +662,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': ['reordering.npy','offsetting.npy','trimming.npy'],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1545321498,1545401552],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -655,8 +677,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': [],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1546960561,1546996266],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -670,8 +692,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': ['reordering.npy','offsetting.npy','trimming.npy'],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1548512473,1548601493],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -685,8 +707,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': ['reordering.npy','offsetting.npy','trimming.npy'],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1549812847,1549900769],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -700,8 +722,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': ['reordering.npy','offsetting.npy','trimming.npy'],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1550503735,1550601920],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -715,8 +737,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': ['reordering.npy','offsetting.npy'],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1552223461,1552300635],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -730,8 +752,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': ['reordering.npy','offsetting.npy'],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1554041608,1554101779],
+             'polarization_1': [],
              'temperature': True
             },
         ],
@@ -745,8 +767,8 @@ metadatabase = {
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
              'patch_files': [],
-             'polarization_0': True,
-             'polarization_1': False,
+             'polarization_0': [1555335080,1555400284],
+             'polarization_1': [],
              'temperature': True
             },
         ],

@@ -531,39 +531,6 @@ def read_raw_file(dirs, file_name, verbose=True, dtype='float64'):
     return raw_data
 
 
-def metadata_from_ctimes(initial_ctime, final_ctime, component='70MHz', verbose=False):
-    """ Loads and patches PRIZM data within a specified time range. """
-
-    # Checks whether `initial_ctime` < `final_ctime`. If not, the values of these inputs are swapped.
-    if initial_ctime > final_ctime:
-        initial_ctime, final_ctime = final_ctime, initial_ctime
-
-    # Extracts the intial and final metadata keys associated with the input ctime range.
-    initial_key = int(str(initial_ctime)[:5])
-    final_key = int(str(final_ctime)[:5])
-
-    # Collects all `metadata` entries associated with the input ctime range.
-    retrieved_metadata = [
-                          entry
-                          for key in metadata[component].keys()
-                          for entry in metadata[component][key]
-                          if key >= initial_key and key < final_key
-                          ]
-
-    # Returns a list containing the desired `metadata` entries.
-    return retrieved_metadata
-
-
-def load_data_from_metadata(metadata_unit, verbose):
-    """ Reads PRIZM data located at a given list of directories. """
-
-    # Initializes the dictionary which will hold the data segment of interest.
-    data = {}
-
-    
-    return None
-
-
 def read_prizm_data(first_ctime, second_ctime, dir_top,
         subdir_100='data_100MHz', subdir_70='data_70MHz',
         subdir_switch='switch_data', read_100=True, read_70=True,
@@ -1469,63 +1436,6 @@ def add_quality_flags(prizm_data, antennas=['70MHz', '100MHz']):
     return
 
 
-def add_metadata_flags(prizm_data, antennas=['70MHz', '100MHz']):
-    """ Creates a 'metadata_flags' entry in a PRIZM data dictionary.
-
-    Adds a 'metadata_flags' entry for each of the `antennas` featuring in the
-    input `prizm_data` dictionary. These new entries are based on the a `metadata`
-    dictionary provided by the user.
-
-    Args:
-        prizm_data: a dictionary containing all PRIZM data structured according
-            to the output of the function `read_prizm_data`.
-        antennas: a list containing the antennas for flag generation.
-
-    Returns:
-        The input dictionary with an additional entry with key 'switch_flags'
-        for each antenna listed in `antennas`. The new entry contains a
-        dictionary with keys 'antenna.scio', 'res100.scio', 'short.scio', and
-        'res50.scio', each storing a NumPy array which flags each of the the
-        data as coming from either the antenna, the 100 Ohm resistor, the short,
-        or the 50 Ohm resistor. A typical output returned by this function would
-        have the following structure.
-
-        {
-        '70MHz': {
-            'pol0.scio': numpy.array,
-            ...,
-            'switch_flags': {
-                'antenna.scio': numpy.array,
-                'res100.scio': numpy.array,
-                'short.scio': numpy.array,
-                'res50.scio': numpy.array,
-                }
-            },
-         '100MHz': {
-            'pol0.scio': numpy.array,
-            ...,
-            'time_sys_stop.raw',
-            'switch_flags': {
-                'antenna.scio': numpy.array,
-                'res100.scio': numpy.array,
-                'short.scio': numpy.array,
-                'res50.scio': numpy.array,
-                }
-            },
-         'switch': {
-            'antenna.scio': numpy.array,
-            'res100.scio': numpy.array,
-            'res50.scio': numpy.array,
-            'short.scio': numpy.array,
-            }
-        }
-    """
-
-    #
-    #
-    return
-
-
 def add_rfi_masks(prizm_data, antennas=['70MHz', '100MHz'], threshold=3, median_filter_window=5):
     """ Creates a 'RFI_masks' entry in a PRIZM data dictionary. """
 
@@ -1613,18 +1523,19 @@ def get_temp_from_slice(prizm_data, antenna, target_slice):
     ctimes = prizm_data[antenna]['time_sys_start.raw'][temp_slice]
 
     # Loads the thermometer measurement times.
-    therms_time_start = prizm_data['temp']['time_start_therms.raw']
+    therms_time_start = prizm_data['switch']['time_start_therms.raw']
 
     # Determines the `index` which is satisfied by those entries of
     # `therms_time_start` corresponding to those `ctimes` selected above.
     index = np.where(therms_time_start >= ctimes[0])[0][0]
 
     # Selects the appropriate temperature '.raw' file.
-    temp_raw_file = 'temp_' + antenna[:-3] + '_ambient.raw'
+    #temp_raw_file = 'temp_' + antenna[:-3] + '_ambient.raw'
+    temp_raw_file = 'temp_' + antenna[:-3] + 'A_noise.raw'
 
     # Uses `index` to extract the ambient temperatures of interest, and store
     # its value in `temp_amb`.
-    temp_amb = prizm_data['temp'][temp_raw_file][index]
+    temp_amb = prizm_data['switch'][temp_raw_file][index]
 
     # Returns the desired temperatures.
     return temp_amb

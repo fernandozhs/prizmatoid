@@ -1500,7 +1500,7 @@ def add_rfi_masks(prizm_data, antennas=['70MHz', '100MHz'], threshold=3, median_
     return
 
 
-def get_temp_from_slice(prizm_data, antenna, target_slice):
+def get_temp_from_slice(prizm_data, temp_file, antenna, target_slice):
     """
     """
 
@@ -1527,18 +1527,20 @@ def get_temp_from_slice(prizm_data, antenna, target_slice):
 
     # Determines the `index` which is satisfied by those entries of
     # `therms_time_start` corresponding to those `ctimes` selected above.
-    index = np.where(therms_time_start >= ctimes[0])[0][0]
+    try:
+        # Retrieves the `index`.
+        index = np.where(therms_time_start >= ctimes[0])[0][0]
 
-    # Selects the appropriate temperature '.raw' file.
-    #temp_raw_file = 'temp_' + antenna[:-3] + '_ambient.raw'
-    temp_raw_file = 'temp_' + antenna[:-3] + 'A_noise.raw'
+        # Uses `index` to extract the ambient temperatures of interest, and store
+        # its value in `temp_amb`.
+        temp_amb = prizm_data['switch'][temp_file][index]
 
-    # Uses `index` to extract the ambient temperatures of interest, and store
-    # its value in `temp_amb`.
-    temp_amb = prizm_data['switch'][temp_raw_file][index]
+        # Returns the desired temperature.
+        return temp_amb
 
-    # Returns the desired temperatures.
-    return temp_amb
+    except:
+        # No temperature reading associated with the select `ctimes` exist.
+        return
 
 
 def get_spectrum_from_slice(channel_spectra, slice):

@@ -213,12 +213,14 @@ def timestamp_from_ctime(ctimes, format='%Y%m%d_%H%M%S'):
     return dates
 
 
-def get_closest_slice(target_slice, list_slices):
+def get_closest_slice(target_slice, list_slices, distance_threshold=None):
     """ Gets the slice in `list_slices` which is closest to `target_slice`.
 
     Selects and outputs the slice object listed in `list_slices` which is
     closest to the `target_slice`. This is done by finding the slice in
     `list_slices` whose center is closest to the center of `target_slice`.
+    If the closest found slice object is at a distance of the `target_slice`
+    which exceeds the input `distance_threshold`, no slice is returned.
 
     Args:
         target_slice: a single slice object of the form
@@ -228,7 +230,8 @@ def get_closest_slice(target_slice, list_slices):
 
     Returns:
         A single slice object from `list_slices` whose center is closest
-        to the center of `target_slice`.
+        to the center of `target_slice`, provided its distance to the
+        `target_slice` does not exceed the `distance_threshold`.
 
     Example(s):
         >>> target_slice = slice(2, 5, None)
@@ -247,8 +250,13 @@ def get_closest_slice(target_slice, list_slices):
     # Finds which index of `distances` labels the smallest distance.
     index = np.argmin(np.abs(distances))
 
-    # Returns the slice object in `list_slices` given by `index`.
-    return list_slices[index]
+    # Returns the slice object in `list_slices` given by `index` provided
+    # its distance to the `target_slice` does not exceed the input
+    # `distance_threshold`.
+    if (distance_threshold is None) or (np.abs(distances[index]) < distance_threshold):
+        return list_slices[index]
+    else:
+        return None
 
 
 def dir_from_ctime(first_ctime, second_ctime, dir_parent, n_digits=5):
@@ -1516,7 +1524,11 @@ def get_temp_from_slice(prizm_data, temp_file, antenna, target_slice):
 
     # Finds the slice in the `list_slices` of temperature measurements which is
     # closest to the input `target_slice`.
-    temp_slice = get_closest_slice(target_slice, temp_clumps)
+    temp_slice = get_closest_slice(target_slice, temp_clumps, 5)
+
+    # Checks whether a `temp_slice` was found.
+    if temp_slice is None:
+        return None
 
     # Uses `temp_slice` to determine which ctimes in `prizm_data` correspond to
     # the temperature measurement of interest.
@@ -1540,7 +1552,7 @@ def get_temp_from_slice(prizm_data, temp_file, antenna, target_slice):
 
     except:
         # No temperature reading associated with the select `ctimes` exist.
-        return
+        return None
 
 
 def get_spectrum_from_slice(channel_spectra, slice):

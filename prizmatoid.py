@@ -644,7 +644,7 @@ def read_prizm_data(first_ctime, second_ctime, dir_top,
         ('sys_clk1.raw', 'int32'), ('sys_clk2.raw', 'int32'),
         ]
     switch_files = [
-        'antenna.scio', 'res100.scio', 'res50.scio', 'short.scio', 'noise.scio'
+        'antenna.scio', 'res100.scio', 'res50.scio', 'short.scio', 'noise.scio', 'open.scio'
         ]
     temp_files = [
         ('temp_100A_bot_lna.raw', 'float'), ('temp_100_ambient.raw', 'float'),

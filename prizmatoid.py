@@ -922,13 +922,16 @@ def add_switch_flags(prizm_data, antennas=['70MHz', '100MHz']):
         # Generates the flags and adds them to `prizm_data`.
         for file_name in switch_files:
             # Ensures flags are generated only for the appropriate '.scio' switch files.
-            if '.scio' not in file_name or 'open' in file_name:
+            if '.scio' not in file_name: # or 'open' in file_name:
                 continue
 
             # Here `times` contains the ctimes at which the data-taking
             # associated with a given component (antenna, the 100 Ohm resistor,
             # the short, or the 50 Ohm resistor) started and stopped.
-            times = prizm_data['switch'][file_name]
+            try:
+                times = prizm_data['switch'][file_name]
+            except:
+                continue
 
             # Initializes the NumPy array `flag` which will be used in the flags
             # generation below.

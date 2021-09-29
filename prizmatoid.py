@@ -213,6 +213,42 @@ def timestamp_from_ctime(ctimes, format='%Y%m%d_%H%M%S'):
     return dates
 
 
+def siderealtime_from_ctime(ctimes):
+    """ Obtains the timestamp associated with a given ctime value.
+
+    Converts a ctime value (or list of ctime values) into sidereal time(s).
+
+    Args:
+        ctimes: a int or a float (or a list of such) containing the ctime(s)
+            which one wishes to convert to timestamp format.
+
+    Returns:
+        A list of strings containing a sidereal time for each input ctime.
+
+    Example(s):
+        >>> siderealtime_from_ctime([1524500000, 1524600000])
+        >>> [1.778374735569075, 2.7873051377295113]
+    """
+
+    # Initializes the geographial location of Marion island for the purpose
+    # of obtaining the accurate sidereal times for different `dates`.
+    marion = ephem.Observer()
+    marion.lat = -46.88694
+    marion.lon = 37.819638
+
+    # Generates the `dates` list containing the timestamps of interest.
+    dates = timestamp_from_ctime(ctimes, format='%Y/%m/%d %H:%M:%S')
+
+    # Produces the sidereal times associated with the above `dates`.
+    sidereal_times = []
+    for date in dates:
+        marion.date = date
+        sidereal_times.append(marion.sidereal_time())
+
+    # Returns the `dates` list.
+    return sidereal_times
+
+
 def get_closest_slice(target_slice, list_slices, distance_threshold=None):
     """ Gets the slice in `list_slices` which is closest to `target_slice`.
 

@@ -661,7 +661,7 @@ metadatabase = {
              'ctimes': [1528400303,1528403532,1528407000,1528408826,1528409428,1528411285,1528413050,1528416032,1528416056,1528419667,1528423274,1528423510,1528426499,1528427543,1528431154,1528434758,1528438361,1528441969,1528445581,1528449189,1528452801,1528456413,1528460025,1528463633,1528467245,1528468069,1528468849,1528470363,1528473966,1528477573,1528479967,1528483574,1528487178,1528490789,1528492464,1528496072,1528497140,1528497864,1528498855],
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
-             'patch_files': [],
+             'patch_files': ['trimming.npy'],
              'polarization_0': [1528400332,1528502398],
              'polarization_1': [1528400332,1528502398],
              'temperature': False

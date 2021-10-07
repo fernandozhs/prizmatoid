@@ -29,6 +29,37 @@ import ephem
 from datetime import datetime, timezone, timedelta
 
 
+def adhoc_fix_siderealtime(input_times, antenna):
+
+    times = input_times.copy()
+
+    if antenna == '100MHz':
+        indices = np.where(np.logical_and(times >= 1526177470.6154313, times <= 1526190828.0750585))[0]
+        if len(indices) != 0:
+            times[slice(indices[0], indices[-1]+1, None)] += -7882
+
+        indices = np.where(np.logical_and(times >= 1527897947.821659, times <= 1527912393.644445))[0]
+        if len(indices) != 0:
+            times[slice(indices[0], indices[-1]+1, None)] += -960
+
+        indices = np.where(np.logical_and(times >= 1527983984.332876, times <= 1527991163.197386))[0]
+        if len(indices) != 0:
+            times[slice(indices[0], indices[-1]+1, None)] += -1346
+
+        indices = np.where(np.logical_and(times >= 1527994648.018487, times <= 1528036359.7265558))[0]
+        if len(indices) != 0:
+            times[slice(indices[0], indices[-1]+1, None)] += -317
+
+        indices = np.where(np.logical_and(times >= 1528070390.936631, times <= 1528094721.7940469))[0]
+        if len(indices) != 0:
+            times[slice(indices[0], indices[-1]+1, None)] += -1350
+
+        indices = np.where(np.logical_and(times >= 1528329586.3978333, times <= 1528389400.0336294))[0]
+        if len(indices) != 0:
+            times[slice(indices[0], indices[-1]+1, None)] += -1372
+
+    return times
+
 
 def expand_flag(flag, interval):
     """ Expands each flagged sample featuring in the `flag` field.
@@ -213,7 +244,7 @@ def timestamp_from_ctime(ctimes, format='%Y%m%d_%H%M%S'):
     return dates
 
 
-def siderealtime_from_ctime(ctimes):
+def siderealtime_from_ctime(ctimes, antenna):
     """ Obtains the timestamp associated with a given ctime value.
 
     Converts a ctime value (or list of ctime values) into sidereal time(s).
@@ -235,6 +266,8 @@ def siderealtime_from_ctime(ctimes):
     marion = ephem.Observer()
     marion.lat = -46.88694
     marion.lon = 37.819638
+
+    ctimes = adhoc_fix_siderealtime(ctimes, antenna)
 
     # Generates the `dates` list containing the timestamps of interest.
     dates = timestamp_from_ctime(ctimes, format='%Y/%m/%d %H:%M:%S')

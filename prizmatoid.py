@@ -264,8 +264,8 @@ def siderealtime_from_ctime(ctimes, antenna):
     # Initializes the geographial location of Marion island for the purpose
     # of obtaining the accurate sidereal times for different `dates`.
     marion = ephem.Observer()
-    marion.lat = -46.88694
-    marion.lon = 37.819638
+    marion.lat = '-46.88694'
+    marion.lon = '37.819638'
 
     ctimes = adhoc_fix_siderealtime(ctimes, antenna)
 
@@ -280,6 +280,101 @@ def siderealtime_from_ctime(ctimes, antenna):
 
     # Returns the `dates` list.
     return sidereal_times
+
+
+def interpolate_short(prizm_data, antenna='100MHz', polarization='pol0.scio'):
+    """
+    """
+
+    # Number of frequency channels.
+    nfreq = prizm_data[antenna][polarization].shape[1]
+
+    select_antenna = (shrink_flag(prizm_data[antenna]['switch_flags']['antenna.scio'], (1,1)) == 1)
+    select_short = (shrink_flag(prizm_data[antenna]['switch_flags']['short.scio'], (1,1)) == 1)
+
+    full_data = prizm_data[antenna][polarization]
+    antenna_data = prizm_data[antenna][polarization][select_antenna]
+    short_data = prizm_data[antenna][polarization][select_short]
+
+    antenna_slices = np.ma.clump_unmasked(np.ma.masked_array(select_antenna, mask=~select_antenna))
+    short_slices = np.ma.clump_unmasked(np.ma.masked_array(select_short, mask=~select_short))
+    calibrators_slices = get_calibrators_slices(select_antenna)
+
+    # The array to be returned:
+    interpolated_short_readings = np.zeros((len(calibrators_slices), nfreq))
+    # The time over which the Short readings will be interpolated:
+    averaged_time = (prizm_data[antenna]['time_sys_start.raw'] + prizm_data[antenna]['time_sys_stop.raw'])/2.
+
+    # For each slice in between antenna slices:
+    for i, calibrator_gap_slice in enumerate(calibrators_slices):
+        # Find the 3 closest calibrator (Short) slices in time:
+        closest_slices = get_closest_slices_in_time(prizm_data, calibrator_gap_slice, short_slices, ctime_distance_threshold=2000, num_slices=3, antenna=antenna)
+        
+        closest_times = np.array([ time_value
+                                   for entry in closest_slices
+                                   for time_value in averaged_time[entry]
+                                   ])
+
+
+        interp_time = averaged_time[calibrator_gap_slice].mean()
+        
+        # Interpolate for each frequency channel:
+        for j in range(0, nfreq):
+        
+            closest_shorts = np.array([ short_value
+                                        for entry in closest_slices
+                                        for short_value in full_data[entry][:,j]
+                                        ])
+            
+            interpolated_short_readings[i,j] = interpolate.interp1d(closest_times, closest_shorts, fill_value="extrapolate")(interp_time)
+    
+    # Make each row repeat 3 times.
+    return np.repeat(interpolated_short_readings, 3, axis=0)
+
+
+def get_calibrators_slices(select_antenna):
+    """
+    """
+
+    antenna_slices = np.ma.clump_unmasked(np.ma.masked_array(select_antenna, mask=~select_antenna))
+    calibrator_gap_slices = np.ma.clump_masked(np.ma.masked_array(select_antenna, mask=~select_antenna))
+
+    # Make sure the first slice is an antenna one:
+    if calibrator_gap_slices[0] < antenna_slices[0]:
+        calibrator_gap_slices.pop(0)
+
+    # Make sure the last slice is a clibrator one:
+    if calibrator_gap_slices[-1] < antenna_slices[-1]:
+        antenna_slice_width = np.r_[antenna_slices[-1]].max() - np.r_[antenna_slices[-1]].min()
+        calibrator_gap_slices.append(slice(np.r_[antenna_slices[-1]].max(), np.r_[antenna_slices[-1]].max() + antenna_slice_width, None))
+    
+    return calibrator_gap_slices
+
+
+def get_closest_slices_in_time(prizm_data, target_slice, list_slices, ctime_distance_threshold=2000, num_slices=2, antenna='100MHz'):
+    """
+    """
+
+    # Creates a list composed of the distances between the centers of each
+    # slice object in `list_slices` and the center of `target_slice`.
+    distances = np.array([
+                 [np.abs(prizm_data[antenna]['time_sys_start.raw'][entry_slice].mean() - prizm_data[antenna]['time_sys_start.raw'][target_slice].mean()), entry_slice]
+                 for entry_slice in list_slices
+                 ])
+
+    threshold_indices = np.argwhere(distances[:,0] <= ctime_distance_threshold).flatten()
+    distances = distances[threshold_indices]
+    sorting_indices = np.argsort(distances[:,0])
+    distances = distances[sorting_indices]
+    return_slices = distances[:,1]
+
+    # Returns the slice object in `list_slices` given by `index` provided
+    # its distance to the `target_slice` does not exceed the input
+    # `distance_threshold`.
+    if len(return_slices) > num_slices:
+        return return_slices[0:num_slices].tolist()
+    else:
+        return return_slices.tolist()
 
 
 def get_closest_slice(target_slice, list_slices, distance_threshold=None):

@@ -755,6 +755,81 @@ metadatabase = {
             },
         ],
 
+        15252:
+        [
+            {'component': '70MHz',
+             'data_subdirectory': '/marion2018/data_70MHz/15252',
+             'patches_subdirectory': '/marion2018/patches_70MHz/15252/1525200400',
+             'ctimes': [1525200400,1525200502,1525201014,1525201479,1525202384,1525202967,1525203082,1525203132,1525203670,1525204260,1525204470,1525205065,1525205657,1525205767,1525205882,1525206791,1525207692,1525208149,1525208554,1525208833,1525209506,1525209552,1525210017,1525210287,1525210739,1525210988,1525211047,1525211952,1525212608,1525213004,1525213590,1525214306,1525214538,1525214796,1525214937,1525215052,1525215167,1525215312,1525216217,1525217125,1525218026,1525218931,1525226540,1525227444,1525228351,1525229254,1525230122,1525230574,1525230702,1525230817,1525231726,1525232632,1525243112,1525243197,1525243614,1525244014,1525244920,1525245817,1525246071,1525246855,1525247113,1525247479,1525247819,1525248730,1525249018,1525249263,1525249629,1525249939,1525250848,1525251757,1525252248,1525253148,1525253247,1525253483,1525253572,1525254115,1525254419,1525254824,1525255007,1525255308,1525255553,1525256057,1525256202,1525256685,1525257336,1525257442,1525257758,1525257973,1525257997,1525258384,1525258663,1525259081,1525259127,1525259791,1525259867,1525260103,1525260667,1525261245,1525261342,1525261452,1525261658,1525261820,1525262446,1525263131,1525263328,1525263568,1525264469,1525264806,1525264882,1525265178,1525265393,1525265417,1525265606,1525266391,1525266593,1525267170,1525267579,1525267907,1525268052,1525268952,1525269480,1525269794,1525270134,1525270337,1525270608,1525271281,1525271724,1525271822,1525272138,1525272534,1525272567,1525272954,1525273609,1525273854,1525274022,1525274514,1525274736,1525275424,1525275582,1525276326,1525276491,1525277236,1525277401,1525278006,1525278302,1525278631,1525278828,1525279205,1525279728,1525280112,1525280629,1525281015,1525281536,1525281916,1525282437,1525282821,1525283339,1525283556,1525283848,1525284093,1525284246,1525284997,1525285152,1525286033,1525286059,1525286585,1525286964,1525287055,1525287429,1525287643,1525287867,1525288021,1525288774,1525288867,1525289194,1525289438,1525289672,1525290346,1525290377,1525290595,1525290727,1525291084,1525291177,1525292081,1525292985,1525293886,1525294791,1525294822,1525295731,1525296015,1525296177,1525296780,1525297647,1525297853,1525298075,1525298207,1525298322,1525298804,1525298872,1525299278,1525299830],
+             'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
+             'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
+             'patch_files': ['reordering.npy','offsetting.npy','trimming.npy'],
+             'polarization_0': [],
+             'polarization_1': [1525200408, 1525300214],
+             'temperature': False
+            },
+        ],
+
+#        15277:
+#        [
+#            {'component': '70MHz',
+#             'data_subdirectory': '/marion2018/data_70MHz/15277',
+#             'patches_subdirectory': '/marion2018/patches_70MHz/15277/1527700219',
+#             'ctimes': [1527700219,1527701130,1527701160,1527702031,1527704763,1527708375,1527711987,1527712336,1527713246,1527714152,1527715058,1527715323,1527715969,1527716275,1527716871,1527717461,1527720243,1527723846,1527724820,1527724843,1527735677,1527739288,1527742897,1527743705,1527743858,1527745255,1527748867,1527752473,1527756087,1527759693,1527763307,1527766913,1527770517,1527774124,1527777727,1527781340,1527784518,1527784952,1527787362,1527788121,1527790964,1527791723,1527792004,1527794572,1527795607,1527799218],
+#             'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
+#             'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
+#             'patch_files': ['reordering.npy','offsetting.npy','trimming.npy'],
+#             'polarization_0': [],
+#             'polarization_1': [],
+#             'temperature': False
+#            },
+#        ],
+
+        15281:
+        [
+            {'component': '70MHz',
+             'data_subdirectory': '/marion2018/data_70MHz/15281',
+             'patches_subdirectory': '/marion2018/patches_70MHz/15281/1528101778',
+             'ctimes': [1528101778,1528101819,1528105425,1528109034,1528111192,1528114800,1528116531,1528119764,1528120398,1528120706,1528121489,1528122415,1528126026,1528129638,1528133250,1528134251,1528137855,1528139351,1528142958,1528146566,1528150170,1528153773,1528155771,1528156827,1528156851,1528160454,1528162794],
+             'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
+             'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
+             'patch_files': [],
+             'polarization_0': [1528101778,1528162794],
+             'polarization_1': [],
+             'temperature': False
+            },
+        ],
+
+        15285:
+        [
+            {'component': '70MHz',
+             'data_subdirectory': '/marion2018/data_70MHz/15285',
+             'patches_subdirectory': '/marion2018/patches_70MHz/15285/1528501039',
+             'ctimes': [1528501039,1528501425,1528502425,1528502449,1528502472,1528505037,1528506075,1528508645,1528509682,1528512249,1528512969,1528515861,1528516576,1528519468,1528520179,1528523076,1528523787,1528526684,1528526764,1528527398,1528530375,1528531011,1528533557,1528534623,1528538234,1528541838,1528545443,1528549050,1528552662,1528556458,1528557444,1528558626,1528561036,1528564647,1528568251,1528571863,1528575471,1528579004,1528580527,1528584138,1528587742,1528588824,1528588847,1528588871,1528592482],
+             'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
+             'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
+             'patch_files': [],
+             'polarization_0': [1528501039,1528592482],
+             'polarization_1': [],
+             'temperature': False
+            },
+        ],
+
+        15302:
+        [
+            {'component': '70MHz',
+             'data_subdirectory': '/marion2018/data_70MHz/15302',
+             'patches_subdirectory': '/marion2018/patches_70MHz/15302/1530293227',
+             'ctimes': [1530293227],
+             'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
+             'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
+             'patch_files': [],
+             'polarization_0': [1530293236,1530293732],
+             'polarization_1': [],
+             'temperature': False
+            },
+        ],
+
         15357:
         [
             {'component': '70MHz',
@@ -4060,6 +4135,136 @@ metadatabase = {
              'patch_files': [],
             },
         ],
+
+        15302:
+        [
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530206171],
+             'scio_files': [('antenna.scio','antenna.scio'),('noise.scio','noise.scio'),('open.scio','open.scio'),('res100.scio','res100.scio'),('res50.scio','res50.scio'),('short.scio','short.scio')],
+             'raw_files': [],
+             'patch_files': [],
+            },
+
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530214174],
+             'scio_files': [('antenna.scio','antenna.scio'),('noise.scio','noise.scio'),('open.scio','open.scio'),('res100.scio','res100.scio'),('res50.scio','res50.scio'),('short.scio','short.scio')],
+             'raw_files': [],
+             'patch_files': [],
+            },
+
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530222177],
+             'scio_files': [('antenna.scio','antenna.scio'),('noise.scio','noise.scio'),('open.scio','open.scio'),('res100.scio','res100.scio'),('res50.scio','res50.scio'),('short.scio','short.scio')],
+             'raw_files': [],
+             'patch_files': [],
+            },
+
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530230180],
+             'scio_files': [('antenna.scio','antenna.scio'),('noise.scio','noise.scio'),('open.scio','open.scio'),('res100.scio','res100.scio'),('res50.scio','res50.scio'),('short.scio','short.scio')],
+             'raw_files': [],
+             'patch_files': [],
+            },
+
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530238183],
+             'scio_files': [('antenna.scio','antenna.scio'),('noise.scio','noise.scio'),('open.scio','open.scio'),('res100.scio','res100.scio'),('res50.scio','res50.scio'),('short.scio','short.scio')],
+             'raw_files': [],
+             'patch_files': [],
+            },
+
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530246186],
+             'scio_files': [('antenna.scio','antenna.scio'),('noise.scio','noise.scio'),('open.scio','open.scio'),('res100.scio','res100.scio'),('res50.scio','res50.scio'),('short.scio','short.scio')],
+             'raw_files': [],
+             'patch_files': [],
+            },
+
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530254189],
+             'scio_files': [('antenna.scio','antenna.scio'),('noise.scio','noise.scio'),('open.scio','open.scio'),('res100.scio','res100.scio'),('res50.scio','res50.scio'),('short.scio','short.scio')],
+             'raw_files': [],
+             'patch_files': [],
+            },
+
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530262191],
+             'scio_files': [('antenna.scio','antenna.scio'),('noise.scio','noise.scio'),('open.scio','open.scio'),('res100.scio','res100.scio'),('res50.scio','res50.scio'),('short.scio','short.scio')],
+             'raw_files': [],
+             'patch_files': [],
+            },
+
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530278305],
+             'scio_files': [('antenna.scio','antenna.scio'),('noise.scio','noise.scio'),('open.scio','open.scio'),('res100.scio','res100.scio'),('res50.scio','res50.scio'),('short.scio','short.scio')],
+             'raw_files': [],
+             'patch_files': [],
+            },
+
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530278307],
+             'scio_files': [],
+             'raw_files': [('temp_100A_bot_lna.raw','float','temp_100A_bot_lna.raw'),('temp_100A_noise.raw','float','temp_100A_noise.raw'),('temp_100A_switch.raw','float','temp_100A_switch.raw'),('temp_100A_top_lna.raw','float','temp_100A_top_lna.raw'),('temp_100B_bot_lna.raw','float','temp_100B_bot_lna.raw'),('temp_100B_noise.raw','float','temp_100B_noise.raw'),('temp_100B_switch.raw','float','temp_100B_switch.raw'),('temp_100B_top_lna.raw','float','temp_100B_top_lna.raw'),('temp_100_ambient.raw','float','temp_100_ambient.raw'),('temp_70A_bot_lna.raw','float','temp_70A_bot_lna.raw'),('temp_70A_noise.raw','float','temp_70A_noise.raw'),('temp_70A_switch.raw','float','temp_70A_switch.raw'),('temp_70A_top_lna.raw','float','temp_70A_top_lna.raw'),('temp_70B_bot_lna.raw','float','temp_70B_bot_lna.raw'),('temp_70B_noise.raw','float','temp_70B_noise.raw'),('temp_70B_switch.raw','float','temp_70B_switch.raw'),('temp_70B_top_lna.raw','float','temp_70B_top_lna.raw'),('temp_70_ambient.raw','float','temp_70_ambient.raw'),('temp_pi.raw','float','temp_pi.raw'),('temp_snapbox.raw','float','temp_snapbox.raw'),('time_rtc_pi.raw','float','time_rtc_pi.raw'),('time_start_therms.raw','float','time_start_therms.raw'),('time_stop_therms.raw','float','time_stop_therms.raw'),('time_sys_pi.raw','float','time_sys_pi.raw')],
+             'patch_files': [],
+            },
+
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530285547],
+             'scio_files': [],
+             'raw_files': [('temp_100A_bot_lna.raw','float','temp_100A_bot_lna.raw'),('temp_100A_noise.raw','float','temp_100A_noise.raw'),('temp_100A_switch.raw','float','temp_100A_switch.raw'),('temp_100A_top_lna.raw','float','temp_100A_top_lna.raw'),('temp_100B_bot_lna.raw','float','temp_100B_bot_lna.raw'),('temp_100B_noise.raw','float','temp_100B_noise.raw'),('temp_100B_switch.raw','float','temp_100B_switch.raw'),('temp_100B_top_lna.raw','float','temp_100B_top_lna.raw'),('temp_100_ambient.raw','float','temp_100_ambient.raw'),('temp_70A_bot_lna.raw','float','temp_70A_bot_lna.raw'),('temp_70A_noise.raw','float','temp_70A_noise.raw'),('temp_70A_switch.raw','float','temp_70A_switch.raw'),('temp_70A_top_lna.raw','float','temp_70A_top_lna.raw'),('temp_70B_bot_lna.raw','float','temp_70B_bot_lna.raw'),('temp_70B_noise.raw','float','temp_70B_noise.raw'),('temp_70B_switch.raw','float','temp_70B_switch.raw'),('temp_70B_top_lna.raw','float','temp_70B_top_lna.raw'),('temp_70_ambient.raw','float','temp_70_ambient.raw'),('temp_pi.raw','float','temp_pi.raw'),('temp_snapbox.raw','float','temp_snapbox.raw'),('time_rtc_pi.raw','float','time_rtc_pi.raw'),('time_start_therms.raw','float','time_start_therms.raw'),('time_stop_therms.raw','float','time_stop_therms.raw'),('time_sys_pi.raw','float','time_sys_pi.raw')],
+             'patch_files': [],
+            },
+
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530286308],
+             'scio_files': [('antenna.scio','antenna.scio'),('noise.scio','noise.scio'),('open.scio','open.scio'),('res100.scio','res100.scio'),('res50.scio','res50.scio'),('short.scio','short.scio')],
+             'raw_files': [],
+             'patch_files': [],
+            },
+
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530292789],
+             'scio_files': [],
+             'raw_files': [('temp_100A_bot_lna.raw','float','temp_100A_bot_lna.raw'),('temp_100A_noise.raw','float','temp_100A_noise.raw'),('temp_100A_switch.raw','float','temp_100A_switch.raw'),('temp_100A_top_lna.raw','float','temp_100A_top_lna.raw'),('temp_100B_bot_lna.raw','float','temp_100B_bot_lna.raw'),('temp_100B_noise.raw','float','temp_100B_noise.raw'),('temp_100B_switch.raw','float','temp_100B_switch.raw'),('temp_100B_top_lna.raw','float','temp_100B_top_lna.raw'),('temp_100_ambient.raw','float','temp_100_ambient.raw'),('temp_70A_bot_lna.raw','float','temp_70A_bot_lna.raw'),('temp_70A_noise.raw','float','temp_70A_noise.raw'),('temp_70A_switch.raw','float','temp_70A_switch.raw'),('temp_70A_top_lna.raw','float','temp_70A_top_lna.raw'),('temp_70B_bot_lna.raw','float','temp_70B_bot_lna.raw'),('temp_70B_noise.raw','float','temp_70B_noise.raw'),('temp_70B_switch.raw','float','temp_70B_switch.raw'),('temp_70B_top_lna.raw','float','temp_70B_top_lna.raw'),('temp_70_ambient.raw','float','temp_70_ambient.raw'),('temp_pi.raw','float','temp_pi.raw'),('temp_snapbox.raw','float','temp_snapbox.raw'),('time_rtc_pi.raw','float','time_rtc_pi.raw'),('time_start_therms.raw','float','time_start_therms.raw'),('time_stop_therms.raw','float','time_stop_therms.raw'),('time_sys_pi.raw','float','time_sys_pi.raw')],
+             'patch_files': [],
+            },
+
+            {'component': 'switch',
+             'data_subdirectory': '/marion2018/switch_data/15302',
+             'patches_subdirectory': '',
+             'ctimes': [1530294312],
+             'scio_files': [('antenna.scio','antenna.scio'),('noise.scio','noise.scio'),('open.scio','open.scio'),('res100.scio','res100.scio'),('res50.scio','res50.scio'),('short.scio','short.scio')],
+             'raw_files': [],
+             'patch_files': [],
+            },
+
+        ]
 
         15357:
         [

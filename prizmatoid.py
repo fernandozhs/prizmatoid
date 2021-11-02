@@ -2117,7 +2117,7 @@ def read_beam(dir_parent, file_name):
     return beam_dict
 
 
-def healpy_beam(beam_dict, healpy_nside=256, site_latitude=-46.88694):
+def healpy_beam(beam_dict, healpy_nside=1024, site_latitude=-46.88694):
     """ Converts a beam simulation dictionary into HealPix format.
 
     Given an input dictionary `beam_dict` containing the raw beam simulation and

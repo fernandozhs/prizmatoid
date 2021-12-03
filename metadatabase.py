@@ -427,7 +427,7 @@ metadatabase = {
              'ctimes': [1524700435,1524701337,1524702239,1524703141,1524704043,1524704945,1524705847,1524706749,1524707651,1524708553,1524709455,1524710357,1524711259,1524712161,1524713062,1524713964,1524714867,1524715768,1524716670,1524717572,1524718474,1524719376,1524720278,1524721180,1524722082,1524722984,1524723886,1524724788],
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_start.raw','float','time_sys_start.raw'),('time_stop.raw','float','time_sys_stop.raw')],
-             'patch_files': [],
+             'patch_files': ['trimming.npy'],
              'polarization_0': [1524700452,1524725562],
              'polarization_1': [1524700452,1524725562],
              'temperature': True
@@ -454,7 +454,7 @@ metadatabase = {
              'ctimes': [1525200770,1525201114,1525202020,1525202273,1525203182,1525203951,1525204430,1525204744,1525205223,1525205835,1525206741,1525207642,1525208074,1525208975,1525209087,1525209449,1525210176,1525210438,1525211297,1525211689,1525211787,1525211983,1525212072,1525212981,1525213313,1525214081,1525214343,1525215248,1525215425,1525216326,1525217232,1525218134,1525219036,1525219221,1525219244,1525219268,1525220170,1525221071,1525221973,1525222880,1525223790,1525224696,1525225598,1525226487,1525227392,1525228299,1525229205,1525230115,1525231100,1525232001,1525232912,1525233823,1525234733,1525235635,1525236537,1525237447,1525238357,1525239260,1525240166,1525241072,1525241975,1525242414,1525242512,1525243417,1525243880,1525244038,1525244784,1525244943,1525244967,1525245752,1525246043,1525246944,1525247854,1525248074,1525248137,1525248433,1525248522,1525248637,1525248982,1525249887,1525250103,1525251005,1525251915,1525252787,1525252837,1525253687,1525254001,1525254233,1525255134,1525255544,1525256437,1525256643,1525257208,1525257297,1525257930,1525258097,1525258182,1525259090,1525259411,1525259487,1525260396,1525260915,1525261078,1525261102,1525261351,1525261427,1525262151,1525262499,1525262562,1525263366,1525263627,1525264532,1525265440,1525266307,1525266820,1525267730,1525268631,1525269422,1525269978,1525270067,1525270333,1525270512,1525271090,1525272066,1525272972,1525273877,1525274780,1525275526,1525276427,1525277338,1525278240,1525279141,1525280049,1525280600,1525281501,1525282411,1525283318,1525284225,1525284292,1525284408,1525285059,1525285736,1525286240,1525286704,1525286983,1525287241,1525287317,1525288226,1525289133,1525290039,1525290293,1525290382,1525290774,1525291409,1525291568,1525291592,1525292165,1525293066,1525293977,1525294880,1525295781,1525296688,1525297598,1525297934,1525298840,1525299141,1525299217],
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
-             'patch_files': [],
+             'patch_files': ['trimming.npy'],
              'polarization_0': [1525200785,1525300118],
              'polarization_1': [1525200785,1525300118],
              'temperature': False
@@ -559,7 +559,7 @@ metadatabase = {
              'ctimes': [1527724816,1527724840,1527724865,1527725109,1527728716,1527732319,1527735927,1527737188,1527740794,1527744402,1527748011,1527749655,1527750603,1527754215,1527757823,1527761435],
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
-             'patch_files': [],
+             'patch_files': ['trimming.npy'],
              'polarization_0': [1527724872,1527768649],
              'polarization_1': [1527724872,1527768649],
              'temperature': True
@@ -571,7 +571,7 @@ metadatabase = {
              'ctimes': [1527768650,1527772262,1527774915,1527775919,1527777059,1527780666,1527784277,1527787890,1527789738,1527793343,1527796947],
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
-             'patch_files': [],
+             'patch_files': ['trimming.npy'],
              'polarization_0': [1527768680,1527800560],
              'polarization_1': [1527768680,1527800560],
              'temperature': True
@@ -586,7 +586,7 @@ metadatabase = {
              'ctimes': [1527800560,1527804168,1527805661,1527809263,1527811228,1527811251,1527829219,1527832370,1527832584,1527836191,1527837467,1527841070,1527841474,1527845086,1527847806,1527848689,1527851417,1527852297,1527855022,1527855904,1527858629,1527859512,1527860710,1527863115,1527863403,1527863694,1527867306,1527870909,1527874522,1527878129,1527881737,1527885338,1527888940,1527892544,1527893393,1527896996],
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
-             'patch_files': ['reordering.npy','offsetting.npy'],
+             'patch_files': ['reordering.npy','offsetting.npy', 'trimming.npy'],
              'polarization_0': [1527800590,1527897588],
              'polarization_1': [1527800590,1527897588],
              'temperature': True
@@ -646,7 +646,7 @@ metadatabase = {
              'ctimes': [1528302726,1528306334,1528309936,1528313540,1528317148,1528320760,1528324372,1528327984,1528329625,1528329649,1528340481,1528344084,1528347691,1528351295,1528351349,1528352284,1528352696,1528356299,1528357023,1528360630,1528364242,1528367846,1528371459,1528375069,1528378677,1528382281,1528385889,1528389490,1528392479,1528393091,1528396090,1528396696,1528399698,1528399925],
              'scio_files': [('pol0.scio','pol0.scio'),('pol1.scio','pol1.scio'),('cross_real.scio','cross_real.scio'),('cross_imag.scio','cross_imag.scio')],
              'raw_files': [('acc_cnt1.raw','int32','acc_cnt1.raw'),('acc_cnt2.raw','int32','acc_cnt2.raw'),('fft_of_cnt.raw','int32','fft_of_cnt.raw'),('fft_shift.raw','int64','fft_shift.raw'),('fpga_temp.raw','float','fpga_temp.raw'),('pi_temp.raw','int32','pi_temp.raw'),('sync_cnt1.raw','int32','sync_cnt1.raw'),('sync_cnt2.raw','int32','sync_cnt2.raw'),('sys_clk1.raw','int32','sys_clk1.raw'),('sys_clk2.raw','int32','sys_clk2.raw'),('time_sys_start.raw','float','time_sys_start.raw'),('time_sys_stop.raw','float','time_sys_stop.raw'),('time_rtc_start.raw','float','time_rtc_start.raw'),('time_rtc_stop.raw','float','time_rtc_stop.raw')],
-             'patch_files': ['reordering.npy','offsetting.npy'],
+             'patch_files': ['reordering.npy','offsetting.npy','trimming.npy'],
              'polarization_0': [1528302750,1528403532],
              'polarization_1': [1528302750,1528403532],
              'temperature': False
@@ -4264,7 +4264,7 @@ metadatabase = {
              'patch_files': [],
             },
 
-        ]
+        ],
 
         15357:
         [

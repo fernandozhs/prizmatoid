@@ -16,8 +16,8 @@ from pygsm import GSMObserver
 from pygsm import GlobalSkyModel
 
 # Scio (https://github.com/sievers/scio)
-import scio
 
+import scio.scio as scio
 # OS Control and Directory Manipulation
 import os
 import glob
@@ -27,6 +27,263 @@ import time
 import suntime
 import ephem
 from datetime import datetime, timezone, timedelta
+
+from . import metadatabase as mdb
+
+class SpectralData:
+    """
+    A class to extract, load, and transform spectrometer data from radio instruments
+
+    Generally holds all data for
+    - A single radio instruments, i.e. the PRIZM 100 MHz antenna OR 70 MHz antenna
+    - All frequencies across
+    - Multiple (pre-defined) timestamps
+
+    Recommended usage:
+    Load data for one instrument, i.e. the PRIzM 100 MHz or 70 MHz antenna
+    Load all frequencies
+    Load a number of timestamps (up to a certain number)
+
+    Based on Fernando Zago's PRIzM metadatabase and prizmatoid modules.
+    """
+    def __init__(self):
+        self.antenna = None
+        self.ctime_interval = None
+        self.data_directory = None
+        self.patches_directory = None
+        self.polarizations = None
+        self.components = None
+        self.switch_flags =  None
+        self.temp_flags = None
+        self.night_time_flags = None
+        self.moon_flags = None
+        self.altitude_buffer = None
+        self.quality_flags = None
+
+        self.antenna_starts = None
+        self.antenna_ends = None
+        self.short_starts = None
+        self.short_ends = None
+
+        return
+
+    def load_data(self, antenna='100MHz', data_directory = None, patches_directory = None, ctime_intervals = None,
+                  filters= [], verbose=True):
+        if data_directory is None:
+            raise Exception("Please define the top-level path that contains data as specified by your metadatabase")
+        if patches_directory is None:
+            raise Exception("Please define the top-level path that contains data patch files")
+        if type(ctime_intervals) != list or None:
+            #TODO Functionality is it possible to have only one "top-level" ctime in case I want to parallelise or analyse the data in chunks
+            #TODO original code pases tuple in list, is that necessary?
+            #This seems to be an issue for laptop users, and maybe good for future niagara-zation
+            raise TypeError("Need to input range of ctimes")
+
+        self.antenna =  antenna
+        self.data_directory = data_directory
+        self.patches_directory = patches_directory
+        self.ctime_intervals = ctime_intervals
+        #TODO Functionality might to change how this information is handled by the metadatabase module??
+        mdb.data_directory = data_directory
+        mdb.patches_directory = patches_directory
+
+        #TODO Functionality: are there are other type of data that one would load??
+        #TODO Data Quality: is there a way we can capture which time stamps have a certain file missing
+        self.data_dictionary = mdb.load_multiple_data(ctime_intervals = self.ctime_intervals,
+                                                      components=[antenna,'switch'], filters=filters,
+                                                      patch=True, verbose=verbose)
+        if len(filters) == 0:
+            #TODO do we want to name them this, or NS and EW??
+            self.polarizations = ['pol0, pol1']
+        else:
+            self.polarizations = filters
+
+        #TODO we may not want to return the actual dictionary anymore
+        return self.data_dictionary
+
+    def generate_flags(self, switch_flags=True, temp_flags=False, night_time_flags=False, moon_flags=False,
+                       altitude_buffer=0, quality_flags=False ):
+        """
+        Reworking of Kelly A Foran's original run_data function
+            To integrate with prizmatoid tools
+            adapted by Ronniy C. Joseph
+        Returns
+        -------
+
+        """
+
+        # TODO: Write some better error handling: prizmatoid function assume list, otherwise will iterate over str characters
+        # TODO: Shorten this by accessing the methods by using getattr or something
+        # The flags function assumes a list
+        # makes the switch flags
+        if switch_flags:
+            self.switch_flags = True
+            add_switch_flags(self.data_dictionary, [self.antenna])
+        if temp_flags:
+            self.temp_flags = True
+            add_temp_flags(self.data_dictionary, [self.antenna])
+        if night_time_flags:
+            self.night_time_flags = True
+            add_nighttime_flags(self.data_dictionary, [self.antenna])
+        if moon_flags:
+            self.moon_flags = True
+            self.altitude_buffer = altitude_buffer
+            add_moon_flags(self.data_dictionary, [self.antenna], altitude_buffer)
+        if quality_flags:
+            self.quality_flags = True
+            add_quality_flags(self.data_dictionary, [self.antenna])
+
+        #TODO we may not want to return the actual dictionary anymore
+        return self.data_dictionary
+
+
+    def trim_flags(self):
+        # Trim the flags, probably because when you switch the data that process is not as instantenous as you'd hope
+        # So the timestamps before and after the switch are probably dodgy
+        if switch_flags and sum(trim) > 0:
+            for antenna in antennas:
+                for key in prizm_data[antenna]['switch_flags'].keys():
+                    new_flags = shrink_flag(prizm_data[antenna]['switch_flags'][key], trim)
+                    prizm_data[antenna]['switch_flags'][key] = new_flags
+
+        return
+
+
+    def find_data_chunks(self, time_stamp_indices, verbose=False):
+        # Calculate the difference between different timestamp indices
+        step_size = np.diff(time_stamp_indices)
+        # If difference is larger than one we're changing from one chunk to another chunk
+        index_change = np.where(step_size > 1)[0]
+
+        # Fill new array with indices found (Note: the above can't find start of first chunk and end of final chunk
+        chunk_start = np.zeros(len(index_change) + 1, dtype=int)
+        chunk_end = np.zeros(len(index_change) + 1, dtype=int)
+
+        # A new chunk starts after the change in index-step
+        chunk_start[1:] = time_stamp_indices[index_change + 1]
+        chunk_start[0] = time_stamp_indices[0]
+
+        # A chunk of data starts before the change in index-step
+        chunk_end[:-1] = time_stamp_indices[index_change]
+        chunk_end[-1] = time_stamp_indices[-1]
+
+        if verbose:
+            print(f'There are {len(chunk_start)} start times and {len(chunk_end)} end times.')
+
+        return chunk_start, chunk_end
+
+
+
+    def flag_and_trim(self, prizm_data, antennas=['70MHz', '100MHz'], switch_flags=True, temp_flags=True,
+                      night_time_flags=True, moon_flags=True, altitude_buffer=0, quality_flags=True, trim=(1, 1)):
+        """ Reworking of Kelly A Foran's original run_data function by Ronniy C. Joseph"""
+
+        # TODO: Write some better error handling: prizmatoid function assume list, otherwise will iterate over str characters
+        # TODO: Shorten this by accessing the methods by using getattr or something
+        # The flags function assumes a list
+        if type(antennas) != list:
+            raise TypeError("antenna variable should be a list")
+        # makes the switch flags
+        if switch_flags:
+            add_switch_flags(prizm_data, antennas)
+        if temp_flags:
+            add_temp_flags(prizm_data, antennas)
+        if night_time_flags:
+            add_nighttime_flags(prizm_data, antennas)
+        if moon_flags:
+            add_moon_flags(prizm_data, antennas, altitude_buffer)
+        if quality_flags:
+            add_quality_flags(prizm_data, antennas)
+
+        return
+
+    def compute_power(self, prizm_data, eff_ew, eff_ns, antenna='100MHz'):
+
+        # Find indices for each data component, I don't quite see why this is necessary because the flags are binary right?
+        # Can't I just use the flags themselves to select the data?
+        index_antenna = np.where(prizm_data[antenna]['switch_flags']['antenna.scio'] == 1)[0]
+        index_100ohm = np.where(prizm_data[antenna]['switch_flags']['res100.scio'] == 1)[0]
+        index_50ohm = np.where(prizm_data[antenna]['switch_flags']['res50.scio'] == 1)[0]
+        index_short = np.where(prizm_data[antenna]['switch_flags']['short.scio'] == 1)[0]
+        index_noise = np.where(prizm_data[antenna]['switch_flags']['noise.scio'] == 1)[0]
+        index_temp = np.where(prizm_data[antenna]['temp_flags'] == 1)[0]
+
+        antenna_starts, antenna_ends = find_data_chunks(index_antenna)
+        short_starts, short_ends = find_data_chunks(index_short)
+
+        short0, short1 = process_short(short_starts, short_ends, prizm_data, antenna_ends)
+
+        power_pol0 = np.zeros((len(index_antenna), 4096))
+        power_pol1 = np.zeros((len(index_antenna), 4096))
+        counter = 0
+        for i in range(len(antenna_starts)):
+            chunk_length = antenna_ends[i] - antenna_starts[i]
+            pol0_data = prizm_data['100MHz']['pol0.scio'][antenna_starts[i]:antenna_ends[i] + 1, :]
+            pol1_data = prizm_data['100MHz']['pol1.scio'][antenna_starts[i]:antenna_ends[i] + 1, :]
+
+            # Compute short and efficiency corrected power
+            power_pol0[counter:counter + chunk_length + 1, :] = (pol0_data - short0[i]) / (eff_ew)
+            power_pol1[counter:counter + chunk_length + 1, :] = (pol1_data - short1[i]) / (eff_ns)
+            counter += chunk_length
+
+        return power_pol0, power_pol1
+
+    def process_short(self, short_starts, short_ends, prizm_data, newlist_antend, antenna='100MHz'):
+
+        short_lengths = list(np.array(short_ends) - np.array(short_starts))
+
+        # iterate over every short chunk
+        # TODO: automate freq dim detection in case the future changes
+
+        short0 = np.zeros((len(short_ends), 4096))
+        short1 = np.zeros((len(short_ends), 4096))
+
+        for i in range(0, len(short_starts)):
+            # What is this and why this length? Same length as frequency channels
+            start_i = short_starts[i]
+            end_i = short_ends[i] + 1
+            # select short measurments for this chunk of data and compute average
+            short0[i, :] = np.average(prizm_data[antenna]['pol0.scio'][start_i:end_i, :], axis=0)
+            short1[i, :] = np.average(prizm_data[antenna]['pol1.scio'][start_i:end_i, :], axis=0)
+
+        # TODO: understand this bit. Deals with figuring out whether there are short measurements missing
+        # IF missing interpolate
+
+        # I am guessing this deals with some sort of fluke in the short measurements
+        # if they are too long use the prizmatoid function to create a replacement
+        # The function seems to go through all data even the attempt here is to only replace ONE averaged short measurement
+        # And only pick out the solution that is relevant.
+        # Should the loop be thrown away entirely and just be replaced with the pzt
+        dif = np.diff(short_ends)
+        base = np.average(dif)
+        for i in range(0, len(dif)):
+            if dif[i] > base + base / 2:
+                short0.insert(i + 1, pzt.interpolate_short(prizm_data, antenna=antenna, polarization='pol0.scio')[i])
+                short1.insert(i + 1, pzt.interpolate_short(prizm_data, antenna=antenna, polarization='pol1.scio')[i])
+
+        # if newlist_shortend[-1] < newlist_antend[-1]:
+        # newlist_shortend = newlist_shortend + newlist_shortend[-1:]
+
+        # Same here if the dataset doesn't end with a short measurement recompute similar to above
+        # TODO optimise this in terms of using pzt interpolation and writing to the array
+        # Give a subset of the complete data array??
+        # Gives a different interpolation as compared to Kelly's code because it uses the trimmed flags!
+        if short_ends[-1] < newlist_antend[-1]:
+            old_pol0 = short0.copy()
+            old_pol1 = short1.copy()
+
+            short0 = np.zeros((old_pol0.shape[0] + 1, old_pol0.shape[1]))
+            short1 = np.zeros((old_pol0.shape[0] + 1, old_pol0.shape[1]))
+
+            short0[:-1, :] = old_pol0
+            short1[:-1, :] = old_pol1
+            short0[-1, :] = pzt.interpolate_short(prizm_data, antenna=antenna, polarization='pol0.scio', trim=(0, 0))[
+                -1]
+            short1[-1, :] = pzt.interpolate_short(prizm_data, antenna=antenna, polarization='pol1.scio', trim=(0, 0))[
+                -1]
+
+        return short0, short1
+
 
 
 def adhoc_fix_siderealtime(input_times, antenna):

@@ -282,15 +282,15 @@ def siderealtime_from_ctime(ctimes, antenna):
     return sidereal_times
 
 
-def interpolate_short(prizm_data, antenna='100MHz', polarization='pol0.scio'):
+def interpolate_short(prizm_data, antenna='100MHz', polarization='pol0.scio', trim = (1,1) ):
     """
     """
 
     # Number of frequency channels.
     nfreq = prizm_data[antenna][polarization].shape[1]
 
-    select_antenna = (shrink_flag(prizm_data[antenna]['switch_flags']['antenna.scio'], (1,1)) == 1)
-    select_short = (shrink_flag(prizm_data[antenna]['switch_flags']['short.scio'], (1,1)) == 1)
+    select_antenna = (shrink_flag(prizm_data[antenna]['switch_flags']['antenna.scio'], trim) == 1)
+    select_short = (shrink_flag(prizm_data[antenna]['switch_flags']['short.scio'], trim) == 1)
 
     full_data = prizm_data[antenna][polarization]
     antenna_data = prizm_data[antenna][polarization][select_antenna]

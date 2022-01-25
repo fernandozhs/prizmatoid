@@ -60,10 +60,18 @@ class SpectralData:
         self.altitude_buffer = None
         self.quality_flags = None
 
-        self.antenna_starts = None
-        self.antenna_ends = None
-        self.short_starts = None
-        self.short_ends = None
+        self.indices_antenna = None
+        self.indices_short = None
+        self.indices_res100 = None
+        self.indices_res50 = None
+        self.indices_noise =  None
+
+        self.start_antenna = None
+        self.end_antenna = None
+        self.start_short = None
+        self.end_short = None
+        self.short_pol0 = None
+        self.short_pol1 = None
 
         return
 
@@ -185,16 +193,48 @@ class SpectralData:
 
 
     def find_entries(self, switch_type = None):
+        """
+        Handles the dictionary structure for you so you don't have to remember where in the dictionary the
+        ...scio data is located
+        Parameters
+        ----------
+        switch_type
+
+        Returns
+        -------
+
+        """
         allowed_values = ('antenna', 'res100', 'res50', 'short', 'noise')
 
         if switch_type not in allowed_values:
             raise Exception(f"switch type {switch_type} not recoginised choose from {allowed_values}")
 
-        indices =  np.where(self.data_dictionary[self.antenna]['switch_flags'][switch_type + '.scio'] == 1)[0]
+
+        indices  = np.where(self.data_dictionary[self.antenna]['switch_flags'][switch_type + '.scio'] == 1)[0]
+        setattr(self, 'indices_' + switch_type, indices )
         return indices
 
 
-    def find_data_chunks(self, time_stamp_indices, verbose=False):
+    def find_data_chunks(self, switch_type=None, verbose=False):
+        """
+
+        Parameters
+        ----------
+        switch_type
+        verbose
+
+        Returns
+        -------
+
+        """
+        allowed_values = ('antenna', 'res100', 'res50', 'short', 'noise')
+        if switch_type not in allowed_values:
+            raise Exception(f"switch type {switch_type} not recoginised choose from {allowed_values}")
+
+        time_stamp_indices = getattr(self, 'indices_' +  switch_type)
+        if time_stamp_indices is None:
+            time_stamp_indices = self.find_entries(switch_type=switch_type)
+
         # Calculate the difference between different timestamp indices
         step_size = np.diff(time_stamp_indices)
         # If difference is larger than one we're changing from one chunk to another chunk
@@ -215,55 +255,87 @@ class SpectralData:
         if verbose:
             print(f'There are {len(chunk_start)} start times and {len(chunk_end)} end times.')
 
+        setattr(self, 'start_' + switch_type, chunk_start)
+        setattr(self, 'end_' + switch_type, chunk_start)
+
         return chunk_start, chunk_end
 
 
+    def compute_power(self, eff_ew, eff_ns):
+        """
 
+        Parameters
+        ----------
+        eff_ew
+        eff_ns
 
-    def compute_power(self, prizm_data, eff_ew, eff_ns, antenna='100MHz'):
+        Returns
+        -------
 
+        """
         # Find indices for each data component, I don't quite see why this is necessary because the flags are binary right?
         # Can't I just use the flags themselves to select the data?
-        index_antenna = np.where(prizm_data[antenna]['switch_flags']['antenna.scio'] == 1)[0]
-        index_short = np.where(prizm_data[antenna]['switch_flags']['short.scio'] == 1)[0]
+        if self.indices_antenna is None:
+            self.find_entries(switch_type='antenna')
+        if self.indices_short is None:
+            self.find_entries(switch_type='short')
 
-        antenna_starts, antenna_ends = find_data_chunks(index_antenna)
-        short_starts, short_ends = find_data_chunks(index_short)
+        if self.start_antenna is None:
+            self.find_data_chunks(switch_type='antenna')
+        if self.start_short is None:
+            self.find_data_chunks(switch_type='short')
 
-        short0, short1 = process_short(short_starts, short_ends, prizm_data, antenna_ends)
+        if self.short_pol0 is None:
+            self.compute_short()
 
-        power_pol0 = np.zeros((len(index_antenna), 4096))
-        power_pol1 = np.zeros((len(index_antenna), 4096))
+        #TODO do something clever so we can deal with changing frequency sampling (there's probably something in the
+        #data dictionary for this?
+        power_pol0 = np.zeros((len(self.indices_antenna), 4096))
+        power_pol1 = np.zeros((len(self.indices_antenna), 4096))
         counter = 0
-        for i in range(len(antenna_starts)):
-            chunk_length = antenna_ends[i] - antenna_starts[i]
-            pol0_data = prizm_data['100MHz']['pol0.scio'][antenna_starts[i]:antenna_ends[i] + 1, :]
-            pol1_data = prizm_data['100MHz']['pol1.scio'][antenna_starts[i]:antenna_ends[i] + 1, :]
+        for i in range(len(self.start_antenna)):
+            start = self.start_antenna[i]
+            end = self.end_antenna[i]
+            chunk_length = end - start
+            #TODO we could just loop over the self.polarizations variable????
+            pol0_data = self.data_dictionary[self.antenna]['pol0.scio'][start:end + 1, :]
+            pol1_data = self.data_dictionary[self.antenna]['pol1.scio'][start:end + 1, :]
 
             # Compute short and efficiency corrected power
-            power_pol0[counter:counter + chunk_length + 1, :] = (pol0_data - short0[i]) / (eff_ew)
-            power_pol1[counter:counter + chunk_length + 1, :] = (pol1_data - short1[i]) / (eff_ns)
+            power_pol0[counter:counter + chunk_length + 1, :] = (pol0_data - self.short_pol0[i]) / (eff_ew)
+            power_pol1[counter:counter + chunk_length + 1, :] = (pol1_data - self.short_pol1[i]) / (eff_ns)
             counter += chunk_length
+
+        self.power_pol0 = power_pol0
+        self.power_pol1 = power_pol1
 
         return power_pol0, power_pol1
 
-    def process_short(self, short_starts, short_ends, prizm_data, newlist_antend, antenna='100MHz'):
 
-        short_lengths = list(np.array(short_ends) - np.array(short_starts))
+    def compute_short(self):
+        """
+
+        Returns
+        -------
+
+        """
+        if self.start_short is None:
+            self.find_data_chunks(switch_type='short')
+        if self.end_antenna is None:
+            self.find_data_chunks(switch_type='antenna')
 
         # iterate over every short chunk
         # TODO: automate freq dim detection in case the future changes
+        short0 = np.zeros((len(self.end_short), 4096))
+        short1 = np.zeros((len(self.end_short), 4096))
 
-        short0 = np.zeros((len(short_ends), 4096))
-        short1 = np.zeros((len(short_ends), 4096))
-
-        for i in range(0, len(short_starts)):
+        for i in range(0, len(self.start_short)):
             # What is this and why this length? Same length as frequency channels
-            start_i = short_starts[i]
-            end_i = short_ends[i] + 1
+            start_i = self.start_short[i]
+            end_i = self.end_short[i] + 1
             # select short measurments for this chunk of data and compute average
-            short0[i, :] = np.average(prizm_data[antenna]['pol0.scio'][start_i:end_i, :], axis=0)
-            short1[i, :] = np.average(prizm_data[antenna]['pol1.scio'][start_i:end_i, :], axis=0)
+            short0[i, :] = np.average(self.data_dictionary[self.antenna]['pol0.scio'][start_i:end_i, :], axis=0)
+            short1[i, :] = np.average(self.data_dictionary[self.antenna]['pol1.scio'][start_i:end_i, :], axis=0)
 
         # TODO: understand this bit. Deals with figuring out whether there are short measurements missing
         # IF missing interpolate
@@ -273,12 +345,14 @@ class SpectralData:
         # The function seems to go through all data even the attempt here is to only replace ONE averaged short measurement
         # And only pick out the solution that is relevant.
         # Should the loop be thrown away entirely and just be replaced with the pzt
-        dif = np.diff(short_ends)
+        dif = np.diff(self.end_short)
         base = np.average(dif)
         for i in range(0, len(dif)):
             if dif[i] > base + base / 2:
-                short0.insert(i + 1, pzt.interpolate_short(prizm_data, antenna=antenna, polarization='pol0.scio')[i])
-                short1.insert(i + 1, pzt.interpolate_short(prizm_data, antenna=antenna, polarization='pol1.scio')[i])
+                short0.insert(i + 1, interpolate_short(self.data_dictionary, antenna=self.antenna,
+                                                       polarization='pol0.scio')[i])
+                short1.insert(i + 1, interpolate_short(self.data_dictionary, antenna=self.antenna,
+                                                       polarization='pol1.scio')[i])
 
         # if newlist_shortend[-1] < newlist_antend[-1]:
         # newlist_shortend = newlist_shortend + newlist_shortend[-1:]
@@ -287,7 +361,7 @@ class SpectralData:
         # TODO optimise this in terms of using pzt interpolation and writing to the array
         # Give a subset of the complete data array??
         # Gives a different interpolation as compared to Kelly's code because it uses the trimmed flags!
-        if short_ends[-1] < newlist_antend[-1]:
+        if self.end_short[-1] < self.end_antenna[-1]:
             old_pol0 = short0.copy()
             old_pol1 = short1.copy()
 
@@ -296,11 +370,12 @@ class SpectralData:
 
             short0[:-1, :] = old_pol0
             short1[:-1, :] = old_pol1
-            short0[-1, :] = pzt.interpolate_short(prizm_data, antenna=antenna, polarization='pol0.scio', trim=(0, 0))[
-                -1]
-            short1[-1, :] = pzt.interpolate_short(prizm_data, antenna=antenna, polarization='pol1.scio', trim=(0, 0))[
-                -1]
-
+            short0[-1, :] = interpolate_short(self.data_dictionary, antenna=self.antenna, polarization='pol0.scio',
+                                              trim=(0, 0))[-1]
+            short1[-1, :] = interpolate_short(self.data_dictionary, antenna=self.antenna, polarization='pol1.scio',
+                                              trim=(0, 0))[-1]
+            self.short_pol0 = short0
+            self.short_pol1 = short1
         return short0, short1
 
 

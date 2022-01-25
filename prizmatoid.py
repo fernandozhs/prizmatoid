@@ -184,6 +184,16 @@ class SpectralData:
         return
 
 
+    def find_entries(self, switch_type = None):
+        allowed_values = ('antenna', 'res100', 'res50', 'short', 'noise')
+
+        if switch_type not in allowed_values:
+            raise Exception(f"switch type {switch_type} not recoginised choose from {allowed_values}")
+
+        indices =  np.where(self.data_dictionary[self.antenna]['switch_flags'][switch_type + '.scio'] == 1)[0]
+        return indices
+
+
     def find_data_chunks(self, time_stamp_indices, verbose=False):
         # Calculate the difference between different timestamp indices
         step_size = np.diff(time_stamp_indices)

@@ -69,6 +69,23 @@ class SpectralData:
 
     def load_data(self, antenna='100MHz', data_directory = None, patches_directory = None, ctime_intervals = None,
                   filters= [], verbose=True):
+
+        """
+
+        Parameters
+        ----------
+        antenna
+        data_directory
+        patches_directory
+        ctime_intervals
+        filters
+        verbose
+
+        Returns
+        -------
+
+        """
+
         if data_directory is None:
             raise Exception("Please define the top-level path that contains data as specified by your metadatabase")
         if patches_directory is None:
@@ -105,13 +122,22 @@ class SpectralData:
                        altitude_buffer=0, quality_flags=False ):
         """
         Reworking of Kelly A Foran's original run_data function
-            To integrate with prizmatoid tools
-            adapted by Ronniy C. Joseph
+        To integrate with prizmatoid tools
+        adapted by Ronniy C. Joseph
+
+        Parameters
+        ----------
+        switch_flags
+        temp_flags
+        night_time_flags
+        moon_flags
+        altitude_buffer
+        quality_flags
+
         Returns
         -------
 
         """
-
         # TODO: Write some better error handling: prizmatoid function assume list, otherwise will iterate over str characters
         # TODO: Shorten this by accessing the methods by using getattr or something
         # The flags function assumes a list
@@ -137,15 +163,24 @@ class SpectralData:
         return self.data_dictionary
 
 
-    def trim_flags(self):
+    def trim_flags(self, trim = (1,1)):
+        """
+
+        Parameters
+        ----------
+        trim
+
+        Returns
+        -------
+
+        """
         # Trim the flags, probably because when you switch the data that process is not as instantenous as you'd hope
         # So the timestamps before and after the switch are probably dodgy
-        if switch_flags and sum(trim) > 0:
-            for antenna in antennas:
-                for key in prizm_data[antenna]['switch_flags'].keys():
-                    new_flags = shrink_flag(prizm_data[antenna]['switch_flags'][key], trim)
-                    prizm_data[antenna]['switch_flags'][key] = new_flags
-
+        if self.switch_flags and sum(trim) > 0:
+            for key in self.data_dictionary[self.antenna]['switch_flags'].keys():
+                new_flags = shrink_flag(self.data_dictionary[self.antenna]['switch_flags'][key], trim)
+                #TODO Choose whether you want to overwrite original flags or create new flags?
+                self.data_dictionary[self.antenna]['switch_flags'][key] = new_flags
         return
 
 

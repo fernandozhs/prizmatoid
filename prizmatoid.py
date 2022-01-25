@@ -32,6 +32,7 @@ from . import metadatabase as mdb
 
 class SpectralData:
     """
+    TODO Come up with a better name
     A class to extract, load, and transform spectrometer data from radio instruments
 
     Generally holds all data for
@@ -44,11 +45,12 @@ class SpectralData:
     Load all frequencies
     Load a number of timestamps (up to a certain number)
 
-    Based on Fernando Zago's PRIzM metadatabase and prizmatoid modules.
+    Based on Fernando Zago's PRIzM metadatabase and prizmatoid modules and Kelly A. Foran's PRIzM analysis pipeline
     """
     def __init__(self):
         self.antenna = None
-        self.ctime_interval = None
+        self.ctime_intervals = None
+        self.data_dictionary
         self.data_directory = None
         self.patches_directory = None
         self.polarizations = None
@@ -73,12 +75,16 @@ class SpectralData:
         self.short_pol0 = None
         self.short_pol1 = None
 
+        self.power_pol0 = None
+        self.power_pol1 = None
+
         return
 
     def load_data(self, antenna='100MHz', data_directory = None, patches_directory = None, ctime_intervals = None,
-                  filters= [], verbose=True):
+                  filters= [], patch = True, verbose=True):
 
         """
+        TODO Functionality: Decide whether we want to load multiple antennas simultaneously
 
         Parameters
         ----------
@@ -98,9 +104,8 @@ class SpectralData:
             raise Exception("Please define the top-level path that contains data as specified by your metadatabase")
         if patches_directory is None:
             raise Exception("Please define the top-level path that contains data patch files")
+        # TODO Functionality: Load less data for parallisation/small analysis? Currently need to specify at least two "top-level" ctime.
         if type(ctime_intervals) != list or None:
-            #TODO Functionality is it possible to have only one "top-level" ctime in case I want to parallelise or analyse the data in chunks
-            #TODO original code pases tuple in list, is that necessary?
             #This seems to be an issue for laptop users, and maybe good for future niagara-zation
             raise TypeError("Need to input range of ctimes")
 
@@ -108,29 +113,32 @@ class SpectralData:
         self.data_directory = data_directory
         self.patches_directory = patches_directory
         self.ctime_intervals = ctime_intervals
-        #TODO Functionality might to change how this information is handled by the metadatabase module??
+
+        #TODO Functionality: might to change how this information is passed to the metadatabase module??
         mdb.data_directory = data_directory
         mdb.patches_directory = patches_directory
 
-        #TODO Functionality: are there are other type of data that one would load??
+        #TODO Functionality: Are there are other 'components' that are loaded apart 'data_100MHz' and 'switch_data' that one would load??
         #TODO Data Quality: is there a way we can capture which time stamps have a certain file missing
         self.data_dictionary = mdb.load_multiple_data(ctime_intervals = self.ctime_intervals,
-                                                      components=[antenna,'switch'], filters=filters,
-                                                      patch=True, verbose=verbose)
+                                                      components=[antenna,'switch'], filters=filters, patch=patch,
+                                                      verbose=verbose)
+
+        # TODO Misc: Polarisation naming convention - EW/NS or Pol0/Pol1?
         if len(filters) == 0:
-            #TODO do we want to name them this, or NS and EW??
             self.polarizations = ['pol0, pol1']
         else:
             self.polarizations = filters
 
-        #TODO we may not want to return the actual dictionary anymore
+        #TODO Functionality: we may not want to return the actual dictionary anymore
         return self.data_dictionary
+
 
     def generate_flags(self, switch_flags=True, temp_flags=False, night_time_flags=False, moon_flags=False,
                        altitude_buffer=0, quality_flags=False ):
         """
         Reworking of Kelly A Foran's original run_data function
-        To integrate with prizmatoid tools
+        To integrate with Fernando Zago's prizmatoid tools
         adapted by Ronniy C. Joseph
 
         Parameters
@@ -146,10 +154,7 @@ class SpectralData:
         -------
 
         """
-        # TODO: Write some better error handling: prizmatoid function assume list, otherwise will iterate over str characters
-        # TODO: Shorten this by accessing the methods by using getattr or something
-        # The flags function assumes a list
-        # makes the switch flags
+        # The flags function assumes component a list
         if switch_flags:
             self.switch_flags = True
             add_switch_flags(self.data_dictionary, [self.antenna])
@@ -182,6 +187,7 @@ class SpectralData:
         -------
 
         """
+
         # Trim the flags, probably because when you switch the data that process is not as instantenous as you'd hope
         # So the timestamps before and after the switch are probably dodgy
         if self.switch_flags and sum(trim) > 0:
@@ -194,6 +200,9 @@ class SpectralData:
 
     def find_entries(self, switch_type = None):
         """
+        #TODO Misc: better naming
+        Looks up which time stamp indices correspond to a certain switch port
+
         Handles the dictionary structure for you so you don't have to remember where in the dictionary the
         ...scio data is located
         Parameters
@@ -217,6 +226,8 @@ class SpectralData:
 
     def find_data_chunks(self, switch_type=None, verbose=False):
         """
+
+        Ouputs start and ending of data chunks for a certain switch type
 
         Parameters
         ----------
@@ -252,17 +263,21 @@ class SpectralData:
         chunk_end[:-1] = time_stamp_indices[index_change]
         chunk_end[-1] = time_stamp_indices[-1]
 
+
         if verbose:
             print(f'There are {len(chunk_start)} start times and {len(chunk_end)} end times.')
 
         setattr(self, 'start_' + switch_type, chunk_start)
-        setattr(self, 'end_' + switch_type, chunk_start)
+        setattr(self, 'end_' + switch_type, chunk_end)
 
         return chunk_start, chunk_end
 
 
     def compute_power(self, eff_ew, eff_ns):
         """
+        TODO Functionality: Decide whether this should be part of the data class?
+        Subtracts short measurment and scales by efficiency (essentially a kind of pre-calibration step)
+
 
         Parameters
         ----------
@@ -273,23 +288,24 @@ class SpectralData:
         -------
 
         """
-        # Find indices for each data component, I don't quite see why this is necessary because the flags are binary right?
-        # Can't I just use the flags themselves to select the data?
+
+        #Check whether indices already have been computes
         if self.indices_antenna is None:
             self.find_entries(switch_type='antenna')
         if self.indices_short is None:
             self.find_entries(switch_type='short')
-
+        #Check whether start and end points of measurement types have been computes
         if self.start_antenna is None:
             self.find_data_chunks(switch_type='antenna')
         if self.start_short is None:
             self.find_data_chunks(switch_type='short')
 
+        #Check whether short measurements have been matched up to antenna measurements (fill in calibrator gaps)
         if self.short_pol0 is None:
             self.compute_short()
 
-        #TODO do something clever so we can deal with changing frequency sampling (there's probably something in the
-        #data dictionary for this?
+        #TODO Optimisation: Extract frequency channels from data dictionary
+
         power_pol0 = np.zeros((len(self.indices_antenna), 4096))
         power_pol1 = np.zeros((len(self.indices_antenna), 4096))
         counter = 0
@@ -297,14 +313,17 @@ class SpectralData:
             start = self.start_antenna[i]
             end = self.end_antenna[i]
             chunk_length = end - start
-            #TODO we could just loop over the self.polarizations variable????
+
+
+            #TODO Functionality: Do we always want to do this for both polarizations?
             pol0_data = self.data_dictionary[self.antenna]['pol0.scio'][start:end + 1, :]
             pol1_data = self.data_dictionary[self.antenna]['pol1.scio'][start:end + 1, :]
 
+            #TODO Optimisation: this magically works despite first axis dimension mismatch
             # Compute short and efficiency corrected power
             power_pol0[counter:counter + chunk_length + 1, :] = (pol0_data - self.short_pol0[i]) / (eff_ew)
             power_pol1[counter:counter + chunk_length + 1, :] = (pol1_data - self.short_pol1[i]) / (eff_ns)
-            counter += chunk_length
+            counter += chunk_length + 1
 
         self.power_pol0 = power_pol0
         self.power_pol1 = power_pol1
@@ -314,23 +333,23 @@ class SpectralData:
 
     def compute_short(self):
         """
+        Matches up short measurements for each antenna measurements.
 
         Returns
         -------
 
         """
+        #Check whether antenna/short start and ends have already been computed
         if self.start_short is None:
             self.find_data_chunks(switch_type='short')
         if self.end_antenna is None:
             self.find_data_chunks(switch_type='antenna')
 
-        # iterate over every short chunk
         # TODO: automate freq dim detection in case the future changes
+        # iterate over every short chunk
         short0 = np.zeros((len(self.end_short), 4096))
         short1 = np.zeros((len(self.end_short), 4096))
-
         for i in range(0, len(self.start_short)):
-            # What is this and why this length? Same length as frequency channels
             start_i = self.start_short[i]
             end_i = self.end_short[i] + 1
             # select short measurments for this chunk of data and compute average
@@ -339,7 +358,6 @@ class SpectralData:
 
         # TODO: understand this bit. Deals with figuring out whether there are short measurements missing
         # IF missing interpolate
-
         # I am guessing this deals with some sort of fluke in the short measurements
         # if they are too long use the prizmatoid function to create a replacement
         # The function seems to go through all data even the attempt here is to only replace ONE averaged short measurement
@@ -353,9 +371,6 @@ class SpectralData:
                                                        polarization='pol0.scio')[i])
                 short1.insert(i + 1, interpolate_short(self.data_dictionary, antenna=self.antenna,
                                                        polarization='pol1.scio')[i])
-
-        # if newlist_shortend[-1] < newlist_antend[-1]:
-        # newlist_shortend = newlist_shortend + newlist_shortend[-1:]
 
         # Same here if the dataset doesn't end with a short measurement recompute similar to above
         # TODO optimise this in terms of using pzt interpolation and writing to the array
@@ -377,7 +392,6 @@ class SpectralData:
             self.short_pol0 = short0
             self.short_pol1 = short1
         return short0, short1
-
 
 
 def adhoc_fix_siderealtime(input_times, antenna):

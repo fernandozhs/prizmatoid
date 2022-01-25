@@ -219,39 +219,13 @@ class SpectralData:
 
 
 
-    def flag_and_trim(self, prizm_data, antennas=['70MHz', '100MHz'], switch_flags=True, temp_flags=True,
-                      night_time_flags=True, moon_flags=True, altitude_buffer=0, quality_flags=True, trim=(1, 1)):
-        """ Reworking of Kelly A Foran's original run_data function by Ronniy C. Joseph"""
-
-        # TODO: Write some better error handling: prizmatoid function assume list, otherwise will iterate over str characters
-        # TODO: Shorten this by accessing the methods by using getattr or something
-        # The flags function assumes a list
-        if type(antennas) != list:
-            raise TypeError("antenna variable should be a list")
-        # makes the switch flags
-        if switch_flags:
-            add_switch_flags(prizm_data, antennas)
-        if temp_flags:
-            add_temp_flags(prizm_data, antennas)
-        if night_time_flags:
-            add_nighttime_flags(prizm_data, antennas)
-        if moon_flags:
-            add_moon_flags(prizm_data, antennas, altitude_buffer)
-        if quality_flags:
-            add_quality_flags(prizm_data, antennas)
-
-        return
 
     def compute_power(self, prizm_data, eff_ew, eff_ns, antenna='100MHz'):
 
         # Find indices for each data component, I don't quite see why this is necessary because the flags are binary right?
         # Can't I just use the flags themselves to select the data?
         index_antenna = np.where(prizm_data[antenna]['switch_flags']['antenna.scio'] == 1)[0]
-        index_100ohm = np.where(prizm_data[antenna]['switch_flags']['res100.scio'] == 1)[0]
-        index_50ohm = np.where(prizm_data[antenna]['switch_flags']['res50.scio'] == 1)[0]
         index_short = np.where(prizm_data[antenna]['switch_flags']['short.scio'] == 1)[0]
-        index_noise = np.where(prizm_data[antenna]['switch_flags']['noise.scio'] == 1)[0]
-        index_temp = np.where(prizm_data[antenna]['temp_flags'] == 1)[0]
 
         antenna_starts, antenna_ends = find_data_chunks(index_antenna)
         short_starts, short_ends = find_data_chunks(index_short)

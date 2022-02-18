@@ -15,9 +15,13 @@ import healpy
 from pygsm import GSMObserver
 from pygsm import GlobalSkyModel
 
-# Scio (https://github.com/sievers/scio)
+try:
+    #import the scio version of pip
+    import scio.scio as scio
+except:
+    #import the scio version of github
+    import scio
 
-import scio.scio as scio
 # OS Control and Directory Manipulation
 import os
 import glob
